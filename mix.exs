@@ -8,7 +8,7 @@ defmodule LowendinsightGet.MixProject do
   def project do
     [
       app: :lowendinsight_get,
-      version: "0.8.1",
+      version: "0.9.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -39,7 +39,7 @@ defmodule LowendinsightGet.MixProject do
       {:postgrex, "~> 0.18"},
       ## {:lowendinsight, path: "../lowendinsight"},
       ## {:lowendinsight, git: "git@bitbucket.org:gtri/lowendinsight", branch: "develop"}
-      {:lowendinsight, "0.8.1"},
+      {:lowendinsight, "~> 0.9.0"},
       {:httpoison_retry, "~> 1.1.0"},
       {:distillery, "~> 2.1"},
       {:excoveralls, "~> 0.14.0", only: :test}
