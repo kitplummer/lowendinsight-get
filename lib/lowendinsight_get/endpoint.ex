@@ -163,6 +163,58 @@ defmodule LowendinsightGet.Endpoint do
     |> send_resp(status, body)
   end
 
+  post "/v1/analyze/sbom" do
+    start_time = DateTime.utc_now()
+    uuid = UUID.uuid1()
+
+    {status, body} =
+      case conn.body_params do
+        %{"sbom" => sbom} ->
+          cache_mode = Map.get(conn.body_params, "cache_mode", "async")
+          cache_timeout = Map.get(conn.body_params, "cache_timeout",
+            Application.get_env(:lowendinsight_get, :sbom_timeout, 60_000))
+
+          if cache_mode in @valid_cache_modes do
+            case LowendinsightGet.SbomParser.parse(sbom) do
+              {:ok, urls} when length(urls) > 0 ->
+                opts = %{cache_mode: cache_mode, cache_timeout: cache_timeout}
+                case LowendinsightGet.Analysis.process_urls(urls, uuid, start_time, opts) do
+                  {:ok, result} ->
+                    # Enhance result with SBOM metadata
+                    enhanced = add_sbom_metadata(result, length(urls))
+                    {200, enhanced}
+                  {:timeout, timed_out_uuid} ->
+                    {202, Poison.encode!(%{
+                      state: "incomplete",
+                      uuid: timed_out_uuid,
+                      sbom_urls_found: length(urls),
+                      error: "SBOM analysis did not complete within #{cache_timeout}ms timeout"
+                    })}
+                  {:error, error} ->
+                    {422, Poison.encode!(%{error: error})}
+                end
+
+              {:ok, []} ->
+                {422, Poison.encode!(%{error: "no git URLs found in SBOM"})}
+
+              {:error, reason} ->
+                {422, Poison.encode!(%{error: "SBOM parse error: #{reason}"})}
+            end
+          else
+            {422, Poison.encode!(%{error: "invalid cache_mode: '#{cache_mode}'. Must be one of: #{Enum.join(@valid_cache_modes, ", ")}"})}
+          end
+
+        _ ->
+          {422, Poison.encode!(%{
+            error: "POST body must contain 'sbom' field with CycloneDX or SPDX JSON"
+          })}
+      end
+
+    conn
+    |> put_resp_content_type(@content_type)
+    |> send_resp(status, body)
+  end
+
   post "/v1/gh_trending/process" do
     Task.start_link(fn -> LowendinsightGet.GithubTrending.process_languages() end)
 
@@ -199,6 +251,19 @@ defmodule LowendinsightGet.Endpoint do
       error:
         "this is a POSTful service, JSON body with valid git url param required and content-type set to application/json.  e.g. {\"urls\": [\"https://gitrepo/org/repo\", \"https://gitrepo/org/repo1\"]"
     })
+  end
+
+  defp add_sbom_metadata(result, url_count) when is_binary(result) do
+    case Poison.decode(result) do
+      {:ok, decoded} ->
+        enhanced = Map.merge(decoded, %{
+          "sbom_analysis" => true,
+          "sbom_urls_found" => url_count
+        })
+        Poison.encode!(enhanced)
+      {:error, _} ->
+        result
+    end
   end
 
   # defp config, do: Application.fetch_env(:lowendinsight_get, __MODULE__)

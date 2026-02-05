@@ -361,4 +361,105 @@ defmodule LowendinsightGet.EndpointTest do
     assert conn_analyze.status == conn_job.status
     assert Poison.decode!(conn_analyze.resp_body)["state"] == Poison.decode!(conn_job.resp_body)["state"]
   end
+
+  ## SBOM endpoint tests
+
+  test "POST /v1/analyze/sbom with CycloneDX returns 200" do
+    sbom = %{
+      "bomFormat" => "CycloneDX",
+      "specVersion" => "1.4",
+      "components" => [
+        %{
+          "name" => "goa",
+          "version" => "1.0.0",
+          "purl" => "pkg:github/kitplummer/goa@v1.0.0"
+        }
+      ]
+    }
+
+    conn = conn(:post, "/v1/analyze/sbom", %{"sbom" => sbom, "cache_mode" => "async"})
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 200
+    json = Poison.decode!(conn.resp_body)
+    assert json["uuid"] != nil
+    assert json["sbom_analysis"] == true
+    assert json["sbom_urls_found"] == 1
+  end
+
+  test "POST /v1/analyze/sbom with SPDX returns 200" do
+    sbom = %{
+      "spdxVersion" => "SPDX-2.3",
+      "packages" => [
+        %{
+          "name" => "goa",
+          "downloadLocation" => "https://github.com/kitplummer/goa"
+        }
+      ]
+    }
+
+    conn = conn(:post, "/v1/analyze/sbom", %{"sbom" => sbom, "cache_mode" => "async"})
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 200
+    json = Poison.decode!(conn.resp_body)
+    assert json["uuid"] != nil
+    assert json["sbom_analysis"] == true
+  end
+
+  test "POST /v1/analyze/sbom with no git URLs returns 422" do
+    sbom = %{
+      "bomFormat" => "CycloneDX",
+      "components" => []
+    }
+
+    conn = conn(:post, "/v1/analyze/sbom", %{"sbom" => sbom})
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 422
+    json = Poison.decode!(conn.resp_body)
+    assert json["error"] =~ "no git URLs found"
+  end
+
+  test "POST /v1/analyze/sbom with invalid format returns 422" do
+    sbom = %{"invalid" => "format"}
+
+    conn = conn(:post, "/v1/analyze/sbom", %{"sbom" => sbom})
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 422
+    json = Poison.decode!(conn.resp_body)
+    assert json["error"] =~ "SBOM parse error"
+  end
+
+  test "POST /v1/analyze/sbom without sbom field returns 422" do
+    conn = conn(:post, "/v1/analyze/sbom", %{})
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 422
+    json = Poison.decode!(conn.resp_body)
+    assert json["error"] =~ "must contain 'sbom' field"
+  end
+
+  test "POST /v1/analyze/sbom with invalid cache_mode returns 422" do
+    sbom = %{
+      "bomFormat" => "CycloneDX",
+      "components" => [
+        %{"purl" => "pkg:github/owner/repo@1.0.0"}
+      ]
+    }
+
+    conn = conn(:post, "/v1/analyze/sbom", %{"sbom" => sbom, "cache_mode" => "invalid"})
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 422
+    json = Poison.decode!(conn.resp_body)
+    assert json["error"] =~ "invalid cache_mode"
+  end
 end
