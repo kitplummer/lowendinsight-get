@@ -6,9 +6,8 @@ on:
       - develop
       - main
   push:
-    branches-ignore:
-      - main     # excludes main - no pushes allowed
-      - develop  # excludes develop - no pushes allowed
+    branches:
+      - develop  # run CI on develop pushes
 
 jobs:
   build:
