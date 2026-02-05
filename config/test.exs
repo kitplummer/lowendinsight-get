@@ -68,7 +68,10 @@ config :lowendinsight_get, LowendinsightGet.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: 5
 
-config :lowendinsight_get, Oban, queues: false, plugins: false
+config :lowendinsight_get, Oban,
+  testing: :manual,
+  queues: false,
+  plugins: false
 
 config :redix,
   redis_url: System.get_env("REDIS_URL") || "redis://localhost:6379/2"
