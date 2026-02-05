@@ -69,6 +69,7 @@ config :lowendinsight_get, LowendinsightGet.Repo,
   pool_size: 5
 
 config :lowendinsight_get, Oban,
+  repo: LowendinsightGet.Repo,
   testing: :manual,
   queues: false,
   plugins: false
