@@ -61,8 +61,8 @@ jobs:
         run: MIX_ENV=test mix coveralls.github
       - name: Build Container
         run: make build
-      - name: docker-compose run LEI-get
-        run: docker-compose up -d
+      - name: docker compose run LEI-get
+        run: docker compose up -d
       - name: Sleep
         uses: jakejarvis/wait-action@master
         with:
