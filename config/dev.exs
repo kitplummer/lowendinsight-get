@@ -14,17 +14,13 @@ config :lowendinsight_get,
 config :redix,
   timeout: :infinity
 
-config :exq,
-  name: Exq,
-  host: "localhost",
-  port: 6379,
-  #password: "optional_redis_auth",
-  namespace: "exq",
-  concurrency: :infinite,
-  queues: [],
-  poll_timeout: 49,
-  scheduler_poll_timeout: 199,
-  scheduler_enable: true,
-  max_retries: 24,
-  mode: :default,
-  shutdown_timeout: 5000
+config :lowendinsight_get, LowendinsightGet.Repo,
+  database: "lowendinsight_get_dev",
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  pool_size: 5
+
+config :lowendinsight_get, Oban,
+  repo: LowendinsightGet.Repo,
+  queues: [analysis: 2]

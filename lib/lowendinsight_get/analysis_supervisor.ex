@@ -17,18 +17,19 @@ defmodule LowendinsightGet.AnalysisSupervisor do
   """
   def perform_analysis(uuid, urls, start_time) do
     opts = [restart: :transient]
-    ## Queue the analysis in the worker's exq config
     ## Only if use_workers is true
     if (Application.get_env(:lowendinsight_get, :use_workers)) do
-      for url <- urls do
-        Logger.debug("queueing up #{url}")
-        case Exq.enqueue(Exq, "lei", LowendinsightWorker.Worker, [url]) do
-          {:ok, ack} ->
-            Logger.debug("ACKED from EXQ: #{ack}")
-          {:error, msg} ->
-            Logger.error(msg)
-            raise RuntimeError, message: "Failed to queue the analysis job."
-        end
+      Logger.debug("queueing analysis job for #{uuid}")
+      changeset =
+        %{uuid: uuid, urls: urls, start_time: DateTime.to_iso8601(start_time)}
+        |> LowendinsightGet.AnalysisWorker.new()
+
+      case Oban.insert(changeset) do
+        {:ok, _job} ->
+          Logger.debug("Job enqueued for #{uuid}")
+        {:error, changeset} ->
+          Logger.error("Failed to enqueue job: #{inspect(changeset)}")
+          raise RuntimeError, message: "Failed to queue the analysis job."
       end
     else
       try do

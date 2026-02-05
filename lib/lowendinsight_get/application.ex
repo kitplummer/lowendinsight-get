@@ -8,7 +8,10 @@ defmodule LowendinsightGet.Application do
   require Logger
 
   def start(_type, _args) do
-    # import Supervisor.spec
+    {:ok, _, _} =
+      Ecto.Migrator.with_repo(LowendinsightGet.Repo, fn repo ->
+        Ecto.Migrator.run(repo, Ecto.Migrator.migrations_path(repo), :up, all: true)
+      end)
 
     Supervisor.start_link(children(), opts())
   end
@@ -45,6 +48,8 @@ defmodule LowendinsightGet.Application do
          port: port,
          password: password
         ]}},
+      LowendinsightGet.Repo,
+      {Oban, Application.fetch_env!(:lowendinsight_get, Oban)},
       LowendinsightGet.Endpoint,
       {Task.Supervisor, name: LowendinsightGet.AnalysisSupervisor}
     ]

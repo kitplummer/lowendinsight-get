@@ -1,6 +1,12 @@
 ---
 version: '3'
 services:
+  postgres:
+    image: "postgres:16-alpine"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=lowendinsight_get_prod
   redis-master:
     image: "redis:alpine"
   lei-get:
@@ -9,3 +15,7 @@ services:
       - "4444:4444"
     environment:
       - REDIS_URL=redis://redis-master:6379/3
+      - DATABASE_URL=ecto://postgres:postgres@postgres/lowendinsight_get_prod
+    depends_on:
+      - postgres
+      - redis-master

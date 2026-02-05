@@ -4,6 +4,8 @@
 
 import Config
 
+config :lowendinsight_get, ecto_repos: [LowendinsightGet.Repo]
+
 config :lowendinsight_get, LowendinsightGet.Endpoint,
   port: String.to_integer(System.get_env("PORT") || "4000")
 

@@ -18,7 +18,7 @@ defmodule LowendinsightGet.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :exq],
+      extra_applications: [:logger],
       mod: {LowendinsightGet.Application, []}
     ]
   end
@@ -34,7 +34,9 @@ defmodule LowendinsightGet.MixProject do
       {:redix, ">= 0.0.0"},
       {:quantum, "~> 3.5"},
       {:timex, "~> 3.7"},
-      {:exq, "~> 0.17"},
+      {:oban, "~> 2.17"},
+      {:ecto_sql, "~> 3.11"},
+      {:postgrex, "~> 0.18"},
       ## {:lowendinsight, path: "../lowendinsight"},
       ## {:lowendinsight, git: "git@bitbucket.org:gtri/lowendinsight", branch: "develop"}
       {:lowendinsight, "0.8.1"},
