@@ -81,7 +81,8 @@ RUN apk update && \
       openssl-dev \
       libstdc++ \
       libgcc \
-      libcrypto1.1
+      libcrypto1.1 \
+      libpq
 
 ENV REPLACE_OS_VARS=true \
     APP_NAME=${APP_NAME} \

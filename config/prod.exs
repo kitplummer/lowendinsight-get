@@ -79,17 +79,10 @@ config :lowendinsight,
 config :redix,
   redis_url: System.get_env("REDIS_URL")
 
-config :exq,
-  name: Exq,
-  host: System.get_env("REDIS_HOST") || "localhost",
-  port: System.get_env("REDIS_PORT") || 6379,
-  password: System.get_env("REDIS_PASSWD") || nil,
-  namespace: "exq",
-  concurrency: :infinite,
-  queues: [],
-  poll_timeout: 49,
-  scheduler_poll_timeout: 199,
-  scheduler_enable: true,
-  max_retries: 24,
-  mode: :default,
-  shutdown_timeout: 4999
+config :lowendinsight_get, LowendinsightGet.Repo,
+  url: System.get_env("DATABASE_URL"),
+  pool_size: 5
+
+config :lowendinsight_get, Oban,
+  repo: LowendinsightGet.Repo,
+  queues: [analysis: String.to_integer(System.get_env("OBAN_ANALYSIS_CONCURRENCY") || "5")]

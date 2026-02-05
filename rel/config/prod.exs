@@ -64,6 +64,14 @@ config :lowendinsight,
   ## Base directory structure for temp clones
   base_temp_dir: System.get_env("LEI_BASE_TEMP_DIR") || "/tmp"
 
+config :lowendinsight_get, LowendinsightGet.Repo,
+  url: System.get_env("DATABASE_URL"),
+  pool_size: 5
+
+config :lowendinsight_get, Oban,
+  repo: LowendinsightGet.Repo,
+  queues: [analysis: String.to_integer(System.get_env("OBAN_ANALYSIS_CONCURRENCY") || "5")]
+
 config :redix,
   redis_url: System.get_env("REDIS_URL"),
   socket_opts: [:inet6]
