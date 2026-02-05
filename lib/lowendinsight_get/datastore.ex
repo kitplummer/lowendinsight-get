@@ -167,4 +167,126 @@ defmodule LowendinsightGet.Datastore do
 
     days > age
   end
+
+  @doc """
+  export_cache/0: exports all cached analysis reports as a list of maps.
+  Each entry contains the cache key and the report data.
+  Returns {:ok, entries, stats} where stats includes count and export timestamp.
+
+  Used for creating distributable cache snapshots for air-gapped deployments.
+  """
+  def export_cache do
+    # Get all cache keys matching our pattern (ecosystem:package:version)
+    {:ok, keys} = Redix.command(:redix, ["KEYS", "*:*:*"])
+
+    # Filter to only include analysis cache keys (exclude jobs, events, etc.)
+    cache_keys = Enum.filter(keys, fn key ->
+      String.contains?(key, ":") and not String.starts_with?(key, "event")
+    end)
+
+    entries = Enum.map(cache_keys, fn key ->
+      {:ok, value} = Redix.command(:redix, ["GET", key])
+      {:ok, ttl} = Redix.command(:redix, ["TTL", key])
+
+      case value do
+        nil -> nil
+        _ ->
+          %{
+            "key" => key,
+            "data" => Poison.decode!(value),
+            "ttl_remaining" => ttl
+          }
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+
+    stats = %{
+      "count" => length(entries),
+      "exported_at" => DateTime.to_iso8601(DateTime.utc_now()),
+      "format_version" => "1.0"
+    }
+
+    {:ok, entries, stats}
+  end
+
+  @doc """
+  import_cache/2: imports a list of cache entries exported by export_cache/0.
+  Each entry should have "key" and "data" fields.
+  Options:
+    - overwrite: if true, overwrites existing entries (default: false)
+    - ttl: TTL in seconds for imported entries (default: cache_ttl_seconds())
+
+  Returns {:ok, stats} with import statistics.
+
+  Used for loading pre-warmed cache in air-gapped deployments.
+  """
+  def import_cache(entries, opts \\ []) do
+    overwrite = Keyword.get(opts, :overwrite, false)
+    ttl = Keyword.get(opts, :ttl, cache_ttl_seconds())
+
+    results = Enum.map(entries, fn entry ->
+      key = entry["key"]
+      data = entry["data"]
+
+      # Check if key exists
+      exists = case Redix.command(:redix, ["EXISTS", key]) do
+        {:ok, 1} -> true
+        {:ok, 0} -> false
+      end
+
+      cond do
+        exists and not overwrite ->
+          {:skipped, key}
+
+        true ->
+          json = Poison.encode!(data)
+          case Redix.command(:redix, ["SETEX", key, ttl, json]) do
+            {:ok, _} -> {:imported, key}
+            {:error, reason} -> {:error, key, reason}
+          end
+      end
+    end)
+
+    imported = Enum.count(results, fn r -> match?({:imported, _}, r) end)
+    skipped = Enum.count(results, fn r -> match?({:skipped, _}, r) end)
+    errors = Enum.count(results, fn r -> match?({:error, _, _}, r) end)
+
+    stats = %{
+      "imported" => imported,
+      "skipped" => skipped,
+      "errors" => errors,
+      "total" => length(entries),
+      "imported_at" => DateTime.to_iso8601(DateTime.utc_now()),
+      "ttl_applied" => ttl
+    }
+
+    Logger.info("Cache import complete: #{imported} imported, #{skipped} skipped, #{errors} errors")
+    {:ok, stats}
+  end
+
+  @doc """
+  cache_stats/0: returns statistics about the current cache state.
+  """
+  def cache_stats do
+    {:ok, keys} = Redix.command(:redix, ["KEYS", "*:*:*"])
+
+    cache_keys = Enum.filter(keys, fn key ->
+      String.contains?(key, ":") and not String.starts_with?(key, "event")
+    end)
+
+    # Group by ecosystem
+    by_ecosystem = Enum.group_by(cache_keys, fn key ->
+      key |> String.split(":") |> List.first()
+    end)
+
+    ecosystem_counts = Enum.map(by_ecosystem, fn {ecosystem, keys} ->
+      {ecosystem, length(keys)}
+    end) |> Map.new()
+
+    %{
+      "total_entries" => length(cache_keys),
+      "by_ecosystem" => ecosystem_counts,
+      "checked_at" => DateTime.to_iso8601(DateTime.utc_now())
+    }
+  end
 end

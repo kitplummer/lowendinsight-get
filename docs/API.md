@@ -1,0 +1,305 @@
+# LowEndInsight API Reference
+
+LowEndInsight (LEI) provides supply chain security analysis for git repositories. This document covers the REST API endpoints.
+
+## Base URL
+
+Production: `https://your-lei-instance.example.com`
+Development: `http://localhost:4000`
+
+## Authentication
+
+All `/v1/*` endpoints require a Bearer token:
+
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+## Endpoints
+
+### Health Check
+
+#### `GET /`
+Returns HTML page. Useful for health checks.
+
+**Response:** `200 OK` with HTML body
+
+---
+
+### Single/Multiple URL Analysis
+
+#### `POST /v1/analyze`
+
+Analyze one or more git repository URLs.
+
+**Request Body:**
+```json
+{
+  "urls": ["https://github.com/owner/repo"],
+  "cache_mode": "blocking",
+  "cache_timeout": 30000
+}
+```
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `urls` | array | required | List of git repository URLs to analyze |
+| `cache_mode` | string | `"blocking"` | How to handle cache misses (see below) |
+| `cache_timeout` | integer | `30000` | Timeout in ms for blocking mode |
+
+**Cache Modes:**
+- `blocking` - Wait for analysis to complete (up to timeout)
+- `async` - Return immediately with job ID, poll for results
+- `stale` - Return stale cached data immediately while refreshing in background
+
+**Response (200 OK):**
+```json
+{
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "complete",
+  "report": {
+    "header": {
+      "start_time": "2024-01-15T10:30:00Z",
+      "end_time": "2024-01-15T10:30:05Z"
+    },
+    "data": {
+      "repo": "https://github.com/owner/repo",
+      "results": {
+        "risk": "low",
+        "contributor_count": 25,
+        "functional_contributors": 8,
+        "commit_currency_weeks": 2
+      }
+    }
+  }
+}
+```
+
+**Response (202 Accepted):** Analysis in progress or timed out
+```json
+{
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "incomplete",
+  "error": "analysis did not complete within 30000ms timeout"
+}
+```
+
+---
+
+#### `GET /v1/analyze/:uuid`
+
+Retrieve analysis results by job UUID.
+
+**Response (200 OK):** Same as POST response with state "complete"
+
+**Response (404 Not Found):**
+```json
+{
+  "error": "invalid UUID provided, no job found."
+}
+```
+
+---
+
+#### `GET /v1/job/:id`
+
+Alias for `/v1/analyze/:uuid`. Same behavior.
+
+---
+
+### SBOM Analysis
+
+#### `POST /v1/analyze/sbom`
+
+Analyze all dependencies in a Software Bill of Materials (SBOM).
+
+Supports:
+- CycloneDX 1.4+ (JSON)
+- SPDX 2.3 (JSON)
+
+**Request Body:**
+```json
+{
+  "sbom": {
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.4",
+    "components": [
+      {
+        "name": "my-lib",
+        "purl": "pkg:github/owner/repo@v1.0.0"
+      }
+    ]
+  },
+  "cache_mode": "async",
+  "cache_timeout": 60000
+}
+```
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `sbom` | object | required | CycloneDX or SPDX JSON object |
+| `cache_mode` | string | `"async"` | How to handle cache misses |
+| `cache_timeout` | integer | `60000` | Timeout in ms for blocking mode |
+
+**URL Extraction:**
+The SBOM parser extracts git URLs from:
+- CycloneDX: `externalReferences` (type: vcs), `purl`
+- SPDX: `externalRefs` (referenceType: purl/vcs), `downloadLocation`
+
+**Response (200 OK):**
+```json
+{
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "complete",
+  "sbom_analysis": true,
+  "sbom_urls_found": 42,
+  "report": { ... }
+}
+```
+
+---
+
+### Cache Management
+
+#### `GET /v1/cache/stats`
+
+Get cache statistics.
+
+**Response (200 OK):**
+```json
+{
+  "total_entries": 1523,
+  "by_ecosystem": {
+    "github": 1200,
+    "gitlab": 300,
+    "bitbucket": 23
+  },
+  "checked_at": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+#### `GET /v1/cache/export`
+
+Export entire cache for air-gapped deployment.
+
+**Response (200 OK):**
+```json
+{
+  "entries": [
+    {
+      "key": "github:owner/repo:latest",
+      "data": { ... },
+      "ttl_remaining": 2592000
+    }
+  ],
+  "stats": {
+    "count": 1523,
+    "exported_at": "2024-01-15T10:30:00Z",
+    "format_version": "1.0"
+  }
+}
+```
+
+The response includes `Content-Disposition: attachment` header for easy download.
+
+---
+
+#### `POST /v1/cache/import`
+
+Import pre-warmed cache (typically from export).
+
+**Request Body:**
+```json
+{
+  "entries": [
+    {
+      "key": "github:owner/repo:latest",
+      "data": { ... }
+    }
+  ],
+  "overwrite": false,
+  "ttl": 2592000
+}
+```
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `entries` | array | required | Array of cache entries from export |
+| `overwrite` | boolean | `false` | Overwrite existing entries |
+| `ttl` | integer | config default | TTL in seconds for imported entries |
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "stats": {
+    "imported": 1500,
+    "skipped": 23,
+    "errors": 0,
+    "total": 1523,
+    "imported_at": "2024-01-15T10:35:00Z",
+    "ttl_applied": 2592000
+  }
+}
+```
+
+---
+
+### URL Validation
+
+#### `GET /validate-url/url=:encoded_url`
+
+Validate if a URL is a valid git repository URL.
+
+**Example:** `GET /validate-url/url=https%3A%2F%2Fgithub.com%2Fowner%2Frepo`
+
+**Response (200 OK):**
+```json
+{
+  "ok": "valid url"
+}
+```
+
+**Response (201):**
+```json
+{
+  "error": "invalid git url"
+}
+```
+
+---
+
+## Error Responses
+
+All errors return JSON with an `error` field:
+
+| Status | Meaning |
+|--------|---------|
+| `401` | Missing or invalid authentication |
+| `404` | Resource not found |
+| `422` | Invalid request parameters |
+
+```json
+{
+  "error": "description of the error"
+}
+```
+
+---
+
+## Rate Limiting
+
+No built-in rate limiting. Implement at the load balancer level for production.
+
+## Cache Key Format
+
+Internal cache keys use the format: `{ecosystem}:{package}:{version}`
+
+Example: `github:owner/repo:latest`
+
+This enables efficient querying and export/import of cached analysis results.

@@ -2,15 +2,28 @@
 
 ![bus_factor](priv/static/images/lei_bus_128.png)
 
-Super simple POST API to get a LowEndInsight report
+Supply chain security analysis API for git repositories.
 
 ![default_elixir_ci](https://github.com/gtri/lowendinsight-get/workflows/default_elixir_ci/badge.svg)
 
-See `lowendinsight`'s README for more details on the underlying
-functionality.  This is just the API to provide the library with
-something to evaluate.
+## Features
 
-https://github.com/gtri/lowendinsight
+- **URL Analysis**: Analyze single or multiple git repository URLs
+- **SBOM Analysis**: Parse CycloneDX/SPDX SBOMs and analyze all dependencies
+- **Caching**: Redis-backed cache with configurable TTL
+- **Cache Modes**: `blocking`, `async`, `stale` for flexible cache-miss handling
+- **Air-Gap Support**: Export/import cache for disconnected environments
+- **Job Queue**: Oban-based persistent job queue with PostgreSQL
+
+## Documentation
+
+- **[API Reference](docs/API.md)** - Complete REST API documentation
+- **[Operations Guide](docs/OPERATIONS.md)** - Deployment, configuration, and maintenance
+
+## Quick Start
+
+See `lowendinsight`'s README for more details on the underlying
+functionality: https://github.com/gtri/lowendinsight
 
 The workflow for this API is asynchronous.  The POST to `/v1/analyze` will return immediately, providing you with a `uuid` for the job.
 
@@ -90,38 +103,55 @@ https://devcenter.heroku.com/articles/heroku-redis#provisioning-the-add-on
 
 ## REST API
 
-* GET / - returns doc HTML
+Full API documentation: **[docs/API.md](docs/API.md)**
 
-* POST /v1/analyze - returns a JSON report
+### Core Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/v1/analyze` | Analyze git repository URLs |
+| `GET` | `/v1/analyze/:uuid` | Get analysis results by job ID |
+| `POST` | `/v1/analyze/sbom` | Analyze SBOM (CycloneDX/SPDX) |
+
+### Cache Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/v1/cache/stats` | Get cache statistics |
+| `GET` | `/v1/cache/export` | Export cache for air-gapped deployment |
+| `POST` | `/v1/cache/import` | Import pre-warmed cache |
+
+### Example: Analyze URLs
 
 ```bash
-curl --location --request POST 'http://localhost:4000/v1/analyze' \
---header 'Content-Type: application/json' \
---data-raw '{"urls":["https://github.com/kitplummer/lita-cron"]}'
+curl -X POST 'http://localhost:4000/v1/analyze' \
+  -H 'Authorization: Bearer $TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{"urls":["https://github.com/owner/repo"], "cache_mode": "blocking"}'
 ```
 
-returns:
-
-```json
-{"metadata":{"times":{"duration":0,"end_time":"","start_time":"2020-01-20T23:18:52.800934Z"}},"report":{"repos":[{"data":{"repo":"https://github.com/kitplummer/lita-cron"}}]},"state":"incomplete","uuid":"38fa1d0c-3bdb-11ea-902c-784f434ce29a"}
-```
-
-* GET /v1/analyze/:uuid
-
-`:uuid` here is the analysis job id, that was returned from the POST above.
+### Example: Analyze SBOM
 
 ```bash
-curl 'http://localhost:4000/v1/analyze/38fa1d0c-3bdb-11ea-902c-784f434ce29a'
+curl -X POST 'http://localhost:4000/v1/analyze/sbom' \
+  -H 'Authorization: Bearer $TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{"sbom": {"bomFormat":"CycloneDX","components":[...]}, "cache_mode": "async"}'
 ```
 
-if `state` is actually complete, then it'll return:
+### Example: Export/Import Cache (Air-Gap)
 
-```json
-{"metadata":{"repo_count":1,"risk_counts":{"critical":1},"times":{"duration":1,"end_time":"2020-01-20T23:18:53.491871Z","start_time":"2020-01-20T23:18:52.800934Z"}},"report":{"repos":[{"data":{"config":{"medium_functional_contributors_level":5,"high_contributor_level":3,"high_functional_contributors_level":3,"high_currency_level":52,"high_large_commit_level":0.15,"critical_large_commit_level":0.3,"critical_currency_level":104,"critical_contributor_level":2,"medium_contributor_level":5,"medium_currency_level":26,"medium_large_commit_level":0.05,"critical_functional_contributors_level":2},"repo":"https://github.com/kitplummer/lita-cron","results":{"commit_currency_risk":"critical","commit_currency_weeks":215,"contributor_count":3,"contributor_risk":"medium","functional_contributor_names":["Kit Plummer"],"functional_contributors":1,"functional_contributors_risk":"critical","large_recent_commit_risk":"critical","recent_commit_size_in_percent_of_codebase":0.6266666666666667},"risk":"critical"},"header":{"duration":1,"end_time":"2020-01-20T23:18:53.490764Z","library_version":"0.3.1","source_client":"lei-get","start_time":"2020-01-20T23:18:52.843176Z","uuid":"396366b8-3bdb-11ea-9987-784f434ce29a"}}],"uuid":"396379aa-3bdb-11ea-a2d8-784f434ce29a"},"state":"complete"}
+```bash
+# Export from connected environment
+curl -H 'Authorization: Bearer $TOKEN' \
+  https://lei.example.com/v1/cache/export > cache.json
+
+# Import to air-gapped environment
+curl -X POST 'http://lei-local:4000/v1/cache/import' \
+  -H 'Authorization: Bearer $TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d @cache.json
 ```
-
-OpenAPI/Swagger docs to come soon...
-[Issue: https://github.com/kitplummer/lowendinsight-get/issues/5]
 
 ## License
 

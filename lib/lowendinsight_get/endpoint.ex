@@ -215,6 +215,67 @@ defmodule LowendinsightGet.Endpoint do
     |> send_resp(status, body)
   end
 
+  ## Cache Management Endpoints (Phase 3: Distributable Cache)
+
+  @doc """
+  GET /v1/cache/export - Export entire cache for air-gapped deployment.
+  Returns JSON with all cached analysis reports.
+  """
+  get "/v1/cache/export" do
+    {:ok, entries, stats} = LowendinsightGet.Datastore.export_cache()
+
+    body = Poison.encode!(%{
+      "entries" => entries,
+      "stats" => stats
+    })
+
+    conn
+    |> put_resp_content_type(@content_type)
+    |> put_resp_header("content-disposition", "attachment; filename=\"lei-cache-export.json\"")
+    |> send_resp(200, body)
+  end
+
+  @doc """
+  POST /v1/cache/import - Import pre-warmed cache for air-gapped deployment.
+  Accepts JSON with "entries" array from export endpoint.
+  Options: overwrite (bool), ttl (seconds)
+  """
+  post "/v1/cache/import" do
+    {status, body} =
+      case conn.body_params do
+        %{"entries" => entries} when is_list(entries) ->
+          overwrite = Map.get(conn.body_params, "overwrite", false)
+          ttl = Map.get(conn.body_params, "ttl", nil)
+
+          opts = if ttl, do: [overwrite: overwrite, ttl: ttl], else: [overwrite: overwrite]
+
+          case LowendinsightGet.Datastore.import_cache(entries, opts) do
+            {:ok, stats} ->
+              {200, Poison.encode!(%{success: true, stats: stats})}
+          end
+
+        _ ->
+          {422, Poison.encode!(%{
+            error: "POST body must contain 'entries' array from cache export"
+          })}
+      end
+
+    conn
+    |> put_resp_content_type(@content_type)
+    |> send_resp(status, body)
+  end
+
+  @doc """
+  GET /v1/cache/stats - Get cache statistics.
+  """
+  get "/v1/cache/stats" do
+    stats = LowendinsightGet.Datastore.cache_stats()
+
+    conn
+    |> put_resp_content_type(@content_type)
+    |> send_resp(200, Poison.encode!(stats))
+  end
+
   post "/v1/gh_trending/process" do
     Task.start_link(fn -> LowendinsightGet.GithubTrending.process_languages() end)
 
