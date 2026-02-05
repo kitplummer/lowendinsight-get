@@ -251,4 +251,102 @@ defmodule LowendinsightGet.EndpointTest do
     assert conn.state == :sent
     assert conn.status == 201
   end
+
+  ## cache_mode tests
+
+  test "POST with cache_mode async returns immediately with uuid and incomplete state" do
+    Redix.command(:redix, ["DELETE", "https://github.com/gbtestee/gbtestee"])
+    conn = conn(:post, "/v1/analyze", %{
+      "urls" => ["https://github.com/gbtestee/gbtestee"],
+      "cache_mode" => "async"
+    })
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 200
+    json = Poison.decode!(conn.resp_body)
+    assert json["uuid"] != nil
+    assert json["state"] == "incomplete"
+  end
+
+  test "POST with cache_mode blocking and short timeout returns 202 with timeout error" do
+    Redix.command(:redix, ["DELETE", "https://github.com/gbtestee/gbtestee"])
+    conn = conn(:post, "/v1/analyze", %{
+      "urls" => ["https://github.com/gbtestee/gbtestee"],
+      "cache_mode" => "blocking",
+      "cache_timeout" => 1
+    })
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 202
+    json = Poison.decode!(conn.resp_body)
+    assert json["state"] == "incomplete"
+    assert json["uuid"] != nil
+    assert String.contains?(json["error"], "timeout")
+  end
+
+  test "POST with cache_mode stale returns stale data when cached" do
+    url = "https://github.com/kitplummer/goa"
+    # Seed the cache with a fake report
+    fake_report = %{
+      "header" => %{"end_time" => DateTime.to_iso8601(DateTime.utc_now())},
+      "data" => %{"repo" => url, "results" => %{}}
+    }
+    Redix.command(:redix, ["SET", url, Poison.encode!(fake_report)])
+
+    conn = conn(:post, "/v1/analyze", %{
+      "urls" => [url],
+      "cache_mode" => "stale"
+    })
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 200
+    json = Poison.decode!(conn.resp_body)
+    assert json["stale"] == true
+    assert json["state"] == "complete"
+    assert json["refresh_job_id"] != nil
+  end
+
+  test "POST with invalid cache_mode returns 422" do
+    conn = conn(:post, "/v1/analyze", %{
+      "urls" => ["https://github.com/gbtestee/gbtestee"],
+      "cache_mode" => "invalid_mode"
+    })
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+
+    assert conn.status == 422
+    json = Poison.decode!(conn.resp_body)
+    assert String.contains?(json["error"], "invalid cache_mode")
+  end
+
+  test "GET /v1/job/:id returns same as /v1/analyze/:uuid" do
+    Redix.command(:redix, ["DELETE", "https://github.com/gbtestee/gbtestee"])
+    # First create a job via POST
+    conn = conn(:post, "/v1/analyze", %{
+      "urls" => ["https://github.com/gbtestee/gbtestee"],
+      "cache_mode" => "async"
+    })
+    conn = Plug.Conn.merge_req_headers(conn, @headers)
+    conn = LowendinsightGet.Endpoint.call(conn, @opts)
+    json = Poison.decode!(conn.resp_body)
+    uuid = json["uuid"]
+
+    :timer.sleep(2000)
+
+    # Fetch via /v1/analyze/:uuid
+    conn_analyze = conn(:get, "/v1/analyze/#{uuid}")
+    conn_analyze = Plug.Conn.merge_req_headers(conn_analyze, @headers)
+    conn_analyze = LowendinsightGet.Endpoint.call(conn_analyze, @opts)
+
+    # Fetch via /v1/job/:id
+    conn_job = conn(:get, "/v1/job/#{uuid}")
+    conn_job = Plug.Conn.merge_req_headers(conn_job, @headers)
+    conn_job = LowendinsightGet.Endpoint.call(conn_job, @opts)
+
+    assert conn_analyze.status == conn_job.status
+    assert Poison.decode!(conn_analyze.resp_body)["state"] == Poison.decode!(conn_job.resp_body)["state"]
+  end
 end

@@ -110,25 +110,19 @@ defmodule LowendinsightGet.Endpoint do
       |> send_resp(status, body)
   end
 
+  @valid_cache_modes ["blocking", "async", "stale"]
+
   ## API Bits
   get "/v1/analyze/:uuid" do
-    {status, body} =
-      case LowendinsightGet.Datastore.get_job(uuid) do
-        {:ok, job} ->
-          ## update job if incomplete
-          job_obj = Poison.decode!(job)
-          case job_obj["state"] do
-            "complete" -> {200, job}
-            "incomplete" ->
-              ### we need to update with new stuffs.
-              Logger.debug("refreshing report")
-              refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
-              {200, Poison.encode!(refreshed_job)}
-          end
+    {status, body} = fetch_job(uuid)
 
-        {:error, _job} ->
-          {404, Poison.encode!(%{:error => "invalid UUID provided, no job found."})}
-      end
+    conn
+    |> put_resp_content_type(@content_type)
+    |> send_resp(status, body)
+  end
+
+  get "/v1/job/:id" do
+    {status, body} = fetch_job(id)
 
     conn
     |> put_resp_content_type(@content_type)
@@ -142,11 +136,23 @@ defmodule LowendinsightGet.Endpoint do
     {status, body} =
       case conn.body_params do
         %{"urls" => urls} ->
-          case LowendinsightGet.Analysis.process_urls(urls, uuid, start_time) do
-            {:ok, empty} ->
-              {200, empty}
-            {:error, error} ->
-              {422, Poison.encode!(%{:error => error})}
+          cache_mode = Map.get(conn.body_params, "cache_mode", "blocking")
+          cache_timeout = Map.get(conn.body_params, "cache_timeout",
+            Application.get_env(:lowendinsight_get, :default_cache_timeout, 30_000))
+
+          if cache_mode in @valid_cache_modes do
+            opts = %{cache_mode: cache_mode, cache_timeout: cache_timeout}
+            case LowendinsightGet.Analysis.process_urls(urls, uuid, start_time, opts) do
+              {:ok, result} ->
+                {200, result}
+              {:timeout, timed_out_uuid} ->
+                {202, Poison.encode!(%{state: "incomplete", uuid: timed_out_uuid,
+                  error: "analysis did not complete within #{cache_timeout}ms timeout"})}
+              {:error, error} ->
+                {422, Poison.encode!(%{:error => error})}
+            end
+          else
+            {422, Poison.encode!(%{error: "invalid cache_mode: '#{cache_mode}'. Must be one of: #{Enum.join(@valid_cache_modes, ", ")}"})}
           end
         _ ->
           {422, process()}
@@ -169,6 +175,23 @@ defmodule LowendinsightGet.Endpoint do
     conn
     |> put_resp_content_type(@content_type)
     |> send_resp(404, Poison.encode!(%{:error => "UUID not provided or found."}))
+  end
+
+  defp fetch_job(uuid) do
+    case LowendinsightGet.Datastore.get_job(uuid) do
+      {:ok, job} ->
+        job_obj = Poison.decode!(job)
+        case job_obj["state"] do
+          "complete" -> {200, job}
+          "incomplete" ->
+            Logger.debug("refreshing report")
+            refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
+            {200, Poison.encode!(refreshed_job)}
+        end
+
+      {:error, _job} ->
+        {404, Poison.encode!(%{:error => "invalid UUID provided, no job found."})}
+    end
   end
 
   defp process do

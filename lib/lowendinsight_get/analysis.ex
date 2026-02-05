@@ -68,63 +68,215 @@ defmodule LowendinsightGet.Analysis do
     {:ok, report}
   end
 
-  # Pulled into a function so it can be called for other interfaces
-  # besides the endpoint.  Probably _should_ be in the analysis module.
+  # Backward-compatible 3-arity wrapper — defaults to async mode (original behavior)
   def process_urls(urls, uuid, start_time) do
+    process_urls(urls, uuid, start_time, %{cache_mode: "async"})
+  end
+
+  # 4-arity with opts map supporting cache_mode and cache_timeout
+  def process_urls(urls, uuid, start_time, opts) do
     if :ok == Helpers.validate_urls(urls) do
-      Logger.debug("started #{uuid} at #{start_time}")
+      cache_mode = Map.get(opts, :cache_mode, "async")
 
-      ## Get empty report for new job to respond the request with
-      empty = AnalyzerModule.create_empty_report(uuid, urls, start_time)
+      case cache_mode do
+        "stale" ->
+          process_urls_stale(urls, uuid, start_time)
 
-      ## TODO: Populate empty with results from cache (within 30 days)
-      repos =
-        urls
-        |> Enum.map(fn url ->
-          case LowendinsightGet.Datastore.get_from_cache(url, 28) do
-            {:ok, report} ->
-              Poison.decode!(report)
-            {:error, msg} ->
-              Logger.debug(msg)
-              # No cached create stub
-              %{data: %{repo: url}}
-          end
-        end)
+        "blocking" ->
+          timeout = Map.get(opts, :cache_timeout,
+            Application.get_env(:lowendinsight_get, :default_cache_timeout, 30_000))
+          process_urls_blocking(urls, uuid, start_time, timeout)
 
-      # Update URL list
-      urls =
-        urls
-        |> Enum.filter(fn url ->
-          !LowendinsightGet.Datastore.in_cache?(url) end)
-        |> Enum.map(fn url -> url end)
-
-      # Update the state if we don't need to do any analysis, or do it
-      # TODO: this is ugly!!  refactor after writing a test
-      if length(urls) == 0 do
-        metadata = empty[:metadata]
-        times = metadata[:times]
-        end_time = DateTime.utc_now()
-        times = Map.replace!(times, :end_time, end_time)
-        metadata = Map.replace!(metadata, :times, times)
-        updated_report = Map.replace!(empty, :metadata, metadata)
-        updated_report = Map.replace!(updated_report, :state, "complete")
-        final_report = Map.replace!(updated_report, :report, %{:repos => repos})
-        LowendinsightGet.Datastore.write_job(uuid, final_report)
-        {:ok, Poison.encode!(final_report)}
-      else
-        partial_report = Map.replace!(empty, :report, %{:repos => repos})
-        LowendinsightGet.Datastore.write_job(uuid, partial_report)
-        case LowendinsightGet.AnalysisSupervisor.perform_analysis(uuid, urls, start_time) do
-          {:ok, task} ->
-            Logger.info(task)
-            {:ok, Poison.encode!(partial_report)}
-
-          {:error, error} ->
-            {:error, error}
-        end
+        _ ->
+          # "async" — original behavior
+          process_urls_async(urls, uuid, start_time)
       end
     else
       {:error, "invalid URLs list"}
+    end
+  end
+
+  # Original process_urls logic extracted into async path
+  defp process_urls_async(urls, uuid, start_time) do
+    Logger.debug("started #{uuid} at #{start_time}")
+
+    empty = AnalyzerModule.create_empty_report(uuid, urls, start_time)
+
+    repos =
+      urls
+      |> Enum.map(fn url ->
+        case LowendinsightGet.Datastore.get_from_cache(url, 28) do
+          {:ok, report} ->
+            Poison.decode!(report)
+          {:error, msg} ->
+            Logger.debug(msg)
+            %{data: %{repo: url}}
+        end
+      end)
+
+    uncached_urls =
+      urls
+      |> Enum.filter(fn url -> !LowendinsightGet.Datastore.in_cache?(url) end)
+
+    if length(uncached_urls) == 0 do
+      metadata = empty[:metadata]
+      times = metadata[:times]
+      end_time = DateTime.utc_now()
+      times = Map.replace!(times, :end_time, end_time)
+      metadata = Map.replace!(metadata, :times, times)
+      updated_report = Map.replace!(empty, :metadata, metadata)
+      updated_report = Map.replace!(updated_report, :state, "complete")
+      final_report = Map.replace!(updated_report, :report, %{:repos => repos})
+      LowendinsightGet.Datastore.write_job(uuid, final_report)
+      {:ok, Poison.encode!(final_report)}
+    else
+      partial_report = Map.replace!(empty, :report, %{:repos => repos})
+      LowendinsightGet.Datastore.write_job(uuid, partial_report)
+      case LowendinsightGet.AnalysisSupervisor.perform_analysis(uuid, uncached_urls, start_time) do
+        {:ok, task} ->
+          Logger.info(task)
+          {:ok, Poison.encode!(partial_report)}
+
+        {:error, error} ->
+          {:error, error}
+      end
+    end
+  end
+
+  # Blocking path: queue analysis then poll until complete or timeout
+  defp process_urls_blocking(urls, uuid, start_time, timeout) do
+    Logger.debug("blocking mode: started #{uuid} at #{start_time}")
+
+    empty = AnalyzerModule.create_empty_report(uuid, urls, start_time)
+
+    repos =
+      urls
+      |> Enum.map(fn url ->
+        case LowendinsightGet.Datastore.get_from_cache(url, 28) do
+          {:ok, report} ->
+            Poison.decode!(report)
+          {:error, msg} ->
+            Logger.debug(msg)
+            %{data: %{repo: url}}
+        end
+      end)
+
+    uncached_urls =
+      urls
+      |> Enum.filter(fn url -> !LowendinsightGet.Datastore.in_cache?(url) end)
+
+    if length(uncached_urls) == 0 do
+      metadata = empty[:metadata]
+      times = metadata[:times]
+      end_time = DateTime.utc_now()
+      times = Map.replace!(times, :end_time, end_time)
+      metadata = Map.replace!(metadata, :times, times)
+      updated_report = Map.replace!(empty, :metadata, metadata)
+      updated_report = Map.replace!(updated_report, :state, "complete")
+      final_report = Map.replace!(updated_report, :report, %{:repos => repos})
+      LowendinsightGet.Datastore.write_job(uuid, final_report)
+      {:ok, Poison.encode!(final_report)}
+    else
+      partial_report = Map.replace!(empty, :report, %{:repos => repos})
+      LowendinsightGet.Datastore.write_job(uuid, partial_report)
+      case LowendinsightGet.AnalysisSupervisor.perform_analysis(uuid, uncached_urls, start_time) do
+        {:ok, _task} ->
+          case poll_job(uuid, timeout) do
+            {:ok, report_json} ->
+              {:ok, report_json}
+
+            {:timeout, uuid} ->
+              {:timeout, uuid}
+          end
+
+        {:error, error} ->
+          {:error, error}
+      end
+    end
+  end
+
+  # Poll Redis job every 500ms until complete or deadline
+  defp poll_job(uuid, timeout_ms) do
+    deadline = System.monotonic_time(:millisecond) + timeout_ms
+    poll_job_loop(uuid, deadline)
+  end
+
+  defp poll_job_loop(uuid, deadline) do
+    case LowendinsightGet.Datastore.get_job(uuid) do
+      {:ok, job_json} ->
+        job = Poison.decode!(job_json)
+        case job["state"] do
+          "complete" ->
+            {:ok, job_json}
+
+          _ ->
+            if System.monotonic_time(:millisecond) >= deadline do
+              {:timeout, uuid}
+            else
+              :timer.sleep(500)
+              poll_job_loop(uuid, deadline)
+            end
+        end
+
+      {:error, _} ->
+        if System.monotonic_time(:millisecond) >= deadline do
+          {:timeout, uuid}
+        else
+          :timer.sleep(500)
+          poll_job_loop(uuid, deadline)
+        end
+    end
+  end
+
+  # Stale path: return stale cached data if available, trigger background refresh
+  defp process_urls_stale(urls, uuid, start_time) do
+    Logger.debug("stale mode: started #{uuid} at #{start_time}")
+
+    # Try to get stale cache for each URL
+    cache_results =
+      urls
+      |> Enum.map(fn url ->
+        case LowendinsightGet.Datastore.get_from_cache_any_age(url) do
+          {:ok, data, :stale} -> {:hit, url, Poison.decode!(data)}
+          {:error, _, :miss} -> {:miss, url, nil}
+        end
+      end)
+
+    all_cached = Enum.all?(cache_results, fn {status, _, _} -> status == :hit end)
+
+    if all_cached do
+      repos = Enum.map(cache_results, fn {:hit, _url, data} -> data end)
+
+      end_time = DateTime.utc_now()
+      duration = DateTime.diff(end_time, start_time)
+
+      report = %{
+        state: "complete",
+        stale: true,
+        refresh_job_id: uuid,
+        uuid: uuid,
+        report: %{uuid: UUID.uuid1(), repos: repos},
+        metadata: %{
+          repo_count: length(repos),
+          times: %{
+            start_time: DateTime.to_iso8601(start_time),
+            end_time: DateTime.to_iso8601(end_time),
+            duration: duration
+          }
+        }
+      }
+
+      LowendinsightGet.Datastore.write_job(uuid, report)
+
+      # Trigger background refresh
+      Task.start(fn ->
+        LowendinsightGet.AnalysisSupervisor.perform_analysis(uuid, urls, start_time)
+      end)
+
+      {:ok, Poison.encode!(report)}
+    else
+      # Some URLs have no cache at all, fall back to async behavior
+      process_urls_async(urls, uuid, start_time)
     end
   end
 
