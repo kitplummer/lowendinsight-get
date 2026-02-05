@@ -44,7 +44,7 @@ defmodule LowendinsightGet.EndpointTest do
   end
 
   test "it returns 401 with no token" do
-    Redix.command(:redix, ["DELETE", "https://github.com/gbtestee/gbtestee"])
+    Redix.command(:redix, ["DEL", LowendinsightGet.Datastore.cache_key("https://github.com/gbtestee/gbtestee")])
     # Create a test connection
     conn = conn(:post, "/v1/analyze", %{urls: ["https://github.com/gbtestee/gbtestee"]})
 
@@ -58,7 +58,7 @@ defmodule LowendinsightGet.EndpointTest do
   end
 
   test "it returns 200 with a valid payload" do
-    Redix.command(:redix, ["DELETE", "https://github.com/gbtestee/gbtestee"])
+    Redix.command(:redix, ["DEL", LowendinsightGet.Datastore.cache_key("https://github.com/gbtestee/gbtestee")])
     # Create a test connection
     conn = conn(:post, "/v1/analyze", %{urls: ["https://github.com/gbtestee/gbtestee"]})
     conn = Plug.Conn.merge_req_headers(conn, @headers)
@@ -78,7 +78,7 @@ defmodule LowendinsightGet.EndpointTest do
   end
 
   test "it returns 200 with a valid payload when cached" do
-    Redix.command(:redix, ["DELETE", "https://github.com/kitplummer/git-author"])
+    Redix.command(:redix, ["DEL", LowendinsightGet.Datastore.cache_key("https://github.com/kitplummer/git-author")])
     # Create a test connection
     conn = conn(:post, "/v1/analyze", %{urls: ["https://github.com/kitplummer/git-author"]})
 

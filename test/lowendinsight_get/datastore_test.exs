@@ -103,17 +103,26 @@ defmodule LowendinsightGet.DatastoreTest do
     assert true == LowendinsightGet.Datastore.too_old?(repo, 30)
   end
 
+  test "cache_key generates correct format" do
+    assert "github:org/repo:latest" ==
+             LowendinsightGet.Datastore.cache_key("https://github.com/org/repo")
+    assert "gitlab:org/repo:latest" ==
+             LowendinsightGet.Datastore.cache_key("https://gitlab.com/org/repo")
+    assert "github:org/repo:latest" ==
+             LowendinsightGet.Datastore.cache_key("https://github.com/org/repo.git")
+  end
+
   test "it writes and reads successfully to cache", %{report: report} do
     assert {:ok, "OK"} ==
              LowendinsightGet.Datastore.write_to_cache("http://repo.com/org/repo", report)
 
-    {:ok, report} = LowendinsightGet.Datastore.get_from_cache("http://repo.com/org/repo", 30)
+    {:ok, report, :hit} = LowendinsightGet.Datastore.get_from_cache("http://repo.com/org/repo", 30)
     repo = Poison.decode!(report)
     assert "https://github.com/kitplummer/xmpp4rails" == repo["data"]["repo"]
   end
 
   test "it returns successfully with not_found when uh" do
-    assert {:error, "report not found"} ==
+    assert {:error, "report not found", :miss} ==
              LowendinsightGet.Datastore.get_from_cache("http://repo.com/org/not_found", 30)
   end
 
@@ -137,11 +146,19 @@ defmodule LowendinsightGet.DatastoreTest do
 
     cache_ttl = Application.get_env(:lowendinsight_get, :cache_ttl)
 
-    assert {:error, "current report not found"} ==
+    assert {:error, "current report not found", :stale} ==
              LowendinsightGet.Datastore.get_from_cache("http://repo.com/org/expired", cache_ttl)
 
-    {:ok, report} = LowendinsightGet.Datastore.get_from_cache("http://repo.com/org/expired", 31)
+    {:ok, report, :hit} = LowendinsightGet.Datastore.get_from_cache("http://repo.com/org/expired", 31)
     repo = Poison.decode!(report)
     assert "http://repo.com/org/expired" == repo["data"]["repo"]
+  end
+
+  test "redis TTL is set on cached entries" do
+    report = %{data: %{repo: "http://repo.com/org/ttl_test"}, header: %{end_time: DateTime.utc_now() |> DateTime.to_iso8601(), start_time: DateTime.utc_now() |> DateTime.to_iso8601(), uuid: "test"}}
+    LowendinsightGet.Datastore.write_to_cache("http://repo.com/org/ttl_test", report)
+    key = LowendinsightGet.Datastore.cache_key("http://repo.com/org/ttl_test")
+    {:ok, ttl} = Redix.command(:redix, ["TTL", key])
+    assert ttl > 0
   end
 end

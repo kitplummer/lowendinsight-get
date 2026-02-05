@@ -10,13 +10,16 @@ defmodule LowendinsightGet.CacheCleaner do
     Logger.info("SCHEDULER: TTL -> #{cache_ttl}")
     {:ok, conn} = Redix.start_link(Application.get_env(:redix, :redis_url))
 
-    case Redix.command(conn, ["KEYS", "http*"]) do
-      {:ok, keys} ->
-        Enum.each(keys, fn key ->
-          Logger.debug("key -> #{key}")
-          check_ttl(conn, key)
-        end)
-    end
+    # Match both legacy URL keys (http*) and new structured keys (*:*:latest)
+    Enum.each(["http*", "*:*:latest"], fn pattern ->
+      case Redix.command(conn, ["KEYS", pattern]) do
+        {:ok, keys} ->
+          Enum.each(keys, fn key ->
+            Logger.debug("key -> #{key}")
+            check_ttl(conn, key)
+          end)
+      end
+    end)
 
     Redix.stop(conn)
   end
