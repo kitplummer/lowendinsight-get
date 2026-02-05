@@ -75,7 +75,7 @@ defmodule LowendinsightGet.Endpoint do
   get "/url=:url" do
     url = URI.decode(url)
     case LowendinsightGet.Analysis.analyze(url, "lei-get", %{types: false}) do
-      {:ok, report} ->
+      {:ok, report, _cache_status} ->
         {:ok, data} = Map.fetch(report, :data)
         error_key? = Map.fetch(data, :error)
         case error_key? do
