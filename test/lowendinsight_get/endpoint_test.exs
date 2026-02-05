@@ -297,12 +297,13 @@ defmodule LowendinsightGet.EndpointTest do
 
   test "POST with cache_mode stale returns stale data when cached" do
     url = "https://github.com/kitplummer/goa"
-    # Seed the cache with a fake report
+    cache_key = LowendinsightGet.Datastore.cache_key(url)
+    # Seed the cache with a fake report using the new cache key format
     fake_report = %{
       "header" => %{"end_time" => DateTime.to_iso8601(DateTime.utc_now())},
       "data" => %{"repo" => url, "results" => %{}}
     }
-    Redix.command(:redix, ["SET", url, Poison.encode!(fake_report)])
+    Redix.command(:redix, ["SET", cache_key, Poison.encode!(fake_report)])
 
     conn = conn(:post, "/v1/analyze", %{
       "urls" => [url],

@@ -19,11 +19,13 @@ defmodule LowendinsightGet.CacheCleanerTest do
   @tag timeout: 180_000
   test "deletes key when cache TTL expires" do
     elixir_url = "https://github.com/elixir-lang/elixir"
+    cache_key = LowendinsightGet.Datastore.cache_key(elixir_url)
     {:ok, _report, _cache_status} = LowendinsightGet.Analysis.analyze(elixir_url, "lei-get", %{types: false})
     {:ok, conn} = Redix.start_link(Application.get_env(:redix, :redis_url))
 
     assert {:ok, nil} == LowendinsightGet.CacheCleaner.check_ttl(conn, "fake_key")
-    assert :deleted == LowendinsightGet.CacheCleaner.check_ttl(conn, elixir_url, true)
+    # Use cache_key format for the check_ttl call
+    assert :deleted == LowendinsightGet.CacheCleaner.check_ttl(conn, cache_key, true)
 
     Redix.stop(conn)
   end
