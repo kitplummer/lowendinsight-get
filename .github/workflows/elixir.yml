@@ -17,8 +17,6 @@ jobs:
     env:
       MIX_ENV: test
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#    container:
-#      image: elixir:1.14.1-alpine
     services:
       postgres:
         image: postgres:16-alpine
@@ -35,23 +33,21 @@ jobs:
           --health-retries 5
     strategy:
       matrix:
-        otp: ['24']
-        elixir: ['1.14.1']
+        otp: ['26.2']
+        elixir: ['1.15.7']
 
     steps:
-      - name: Install deps
-        run: sudo apt install 
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
-          elixir-version: ${{matrix.elixir}}      
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3.5.1
+          elixir-version: ${{matrix.elixir}}
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20
       - uses: zhulik/redis-action@1.1.0
         with:
-          redis version: '5'
+          redis version: '7'
           number of databases: 20
       - name: Install Dependencies
         run: |
@@ -74,8 +70,3 @@ jobs:
           time: '30s'
       - name: Postman tests
         run: newman run test/docker-compose.postman_collection.json
-      # - name: Publish to Registry
-      #   env:
-      #     DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      #     DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      #   run: make publish-snapshot

@@ -112,6 +112,112 @@ defmodule LowendinsightGet.DatastoreTest do
              LowendinsightGet.Datastore.cache_key("https://github.com/org/repo.git")
   end
 
+  test "cache_key handles trailing slashes" do
+    assert "github:org/repo:latest" ==
+             LowendinsightGet.Datastore.cache_key("https://github.com/org/repo/")
+  end
+
+  test "cache_key handles .git suffix with trailing slash" do
+    assert "github:org/repo:latest" ==
+             LowendinsightGet.Datastore.cache_key("https://github.com/org/repo.git")
+  end
+
+  test "cache_key strips known TLD suffixes" do
+    assert "bitbucket:team/project:latest" ==
+             LowendinsightGet.Datastore.cache_key("https://bitbucket.org/team/project")
+    assert "sourcehut:user/repo:latest" ==
+             LowendinsightGet.Datastore.cache_key("https://sourcehut.io/user/repo")
+  end
+
+  test "cache_key handles HTTP scheme" do
+    assert "github:org/repo:latest" ==
+             LowendinsightGet.Datastore.cache_key("http://github.com/org/repo")
+  end
+
+  test "cache_key produces same key for equivalent URLs" do
+    key1 = LowendinsightGet.Datastore.cache_key("https://github.com/org/repo")
+    key2 = LowendinsightGet.Datastore.cache_key("https://github.com/org/repo.git")
+    key3 = LowendinsightGet.Datastore.cache_key("https://github.com/org/repo/")
+    assert key1 == key2
+    assert key1 == key3
+  end
+
+  test "cache_ttl_seconds returns configured value" do
+    ttl = LowendinsightGet.Datastore.cache_ttl_seconds()
+    assert is_integer(ttl)
+    assert ttl > 0
+  end
+
+  test "in_cache? returns true for cached URL" do
+    url = "http://repo.com/org/in_cache_check"
+    report = %{
+      data: %{repo: url},
+      header: %{
+        end_time: DateTime.utc_now() |> DateTime.to_iso8601(),
+        start_time: DateTime.utc_now() |> DateTime.to_iso8601(),
+        uuid: "test-in-cache"
+      }
+    }
+    LowendinsightGet.Datastore.write_to_cache(url, report)
+    assert LowendinsightGet.Datastore.in_cache?(url) == true
+  end
+
+  test "in_cache? returns false for uncached URL" do
+    assert LowendinsightGet.Datastore.in_cache?("http://repo.com/org/never_cached_#{System.unique_integer([:positive])}") == false
+  end
+
+  test "get_from_cache returns :miss for never-cached URL" do
+    url = "http://repo.com/org/never_existed_#{System.unique_integer([:positive])}"
+    assert {:error, "report not found", :miss} ==
+             LowendinsightGet.Datastore.get_from_cache(url, 30)
+  end
+
+  test "get_from_cache returns :hit for fresh entry" do
+    url = "http://repo.com/org/fresh_entry"
+    now = DateTime.utc_now() |> DateTime.to_iso8601()
+    report = %{
+      data: %{repo: url},
+      header: %{
+        end_time: now,
+        start_time: now,
+        uuid: "fresh-uuid"
+      }
+    }
+    LowendinsightGet.Datastore.write_to_cache(url, report)
+    assert {:ok, _, :hit} = LowendinsightGet.Datastore.get_from_cache(url, 30)
+  end
+
+  test "get_from_cache returns :stale for old entry within Redis TTL" do
+    url = "http://repo.com/org/stale_entry"
+    old_time = DateTime.utc_now() |> DateTime.add(-(86400 * 35)) |> DateTime.to_iso8601()
+    report = %{
+      data: %{repo: url},
+      header: %{
+        end_time: old_time,
+        start_time: old_time,
+        uuid: "stale-uuid"
+      }
+    }
+    LowendinsightGet.Datastore.write_to_cache(url, report)
+    # Ask for 30-day freshness, but entry is 35 days old
+    assert {:error, "current report not found", :stale} ==
+             LowendinsightGet.Datastore.get_from_cache(url, 30)
+  end
+
+  test "write_to_cache overwrites previous entry" do
+    url = "http://repo.com/org/overwrite_cache"
+    now = DateTime.utc_now() |> DateTime.to_iso8601()
+    report1 = %{data: %{repo: url, tag: "first"}, header: %{end_time: now, start_time: now, uuid: "v1"}}
+    report2 = %{data: %{repo: url, tag: "second"}, header: %{end_time: now, start_time: now, uuid: "v2"}}
+
+    LowendinsightGet.Datastore.write_to_cache(url, report1)
+    LowendinsightGet.Datastore.write_to_cache(url, report2)
+
+    {:ok, json, :hit} = LowendinsightGet.Datastore.get_from_cache(url, 30)
+    decoded = Poison.decode!(json)
+    assert decoded["data"]["tag"] == "second"
+  end
+
   test "it writes and reads successfully to cache", %{report: report} do
     assert {:ok, "OK"} ==
              LowendinsightGet.Datastore.write_to_cache("http://repo.com/org/repo", report)
