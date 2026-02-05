@@ -14,18 +14,16 @@ defmodule LowendinsightGet.Analysis do
            url,
            Application.get_env(:lowendinsight_get, :cache_ttl)
          ) do
-      {:ok, repo_report} ->
+      {:ok, repo_report, :hit} ->
         Logger.info("#{url} is cached, yay!")
-        # have it in the cache, yay
         repo_data = Poison.decode!(repo_report, as: %RepoReport{data: %Data{results: %Results{}}})
-        {:ok, repo_data}
+        {:ok, repo_data, :hit}
 
-      {:error, msg} ->
+      {:error, msg, _cache_status} ->
         Logger.info("No cache: #{msg}")
-        # don't have it
         {:ok, rep} = AnalyzerModule.analyze(url, source, options)
         LowendinsightGet.Datastore.write_to_cache(url, rep)
-        {:ok, rep}
+        {:ok, rep, :miss}
     end
   end
 
@@ -33,19 +31,32 @@ defmodule LowendinsightGet.Analysis do
     Logger.info("processing #{uuid} -> #{inspect urls}")
     LowendinsightGet.CounterAgent.new_counter(Enum.count(urls))
 
-    repos =
+    results =
       urls
       |> Task.async_stream(__MODULE__, :analyze, ["lei-get", %{types: false}],
           timeout: :infinity,
           max_concurrency: 1)
-      |> Enum.map(fn {:ok, report} -> elem(report, 1) end)
+      |> Enum.map(fn {:ok, {_status, repo, cache_status}} -> {repo, cache_status} end)
+
+    repos = Enum.map(results, fn {repo, _status} -> repo end)
+    cache_statuses = Enum.map(results, fn {_repo, status} -> Atom.to_string(status) end)
 
     LowendinsightGet.CounterAgent.update()
+
+    cache_hits = Enum.count(cache_statuses, &(&1 == "hit"))
+    cache_misses = Enum.count(cache_statuses, &(&1 == "miss"))
 
     report = %{
       state: "complete",
       report: %{uuid: UUID.uuid1(), repos: repos},
-      metadata: %{repo_count: length(repos)}
+      metadata: %{
+        repo_count: length(repos),
+        cache_status: %{
+          hits: cache_hits,
+          misses: cache_misses,
+          per_repo: cache_statuses
+        }
+      }
     }
 
     report = AnalyzerModule.determine_risk_counts(report)
@@ -77,19 +88,21 @@ defmodule LowendinsightGet.Analysis do
       ## Get empty report for new job to respond the request with
       empty = AnalyzerModule.create_empty_report(uuid, urls, start_time)
 
-      ## TODO: Populate empty with results from cache (within 30 days)
-      repos =
+      ## Populate empty with results from cache (within 30 days)
+      cache_results =
         urls
         |> Enum.map(fn url ->
           case LowendinsightGet.Datastore.get_from_cache(url, 28) do
-            {:ok, report} ->
-              Poison.decode!(report)
-            {:error, msg} ->
+            {:ok, report, :hit} ->
+              {Poison.decode!(report), :hit}
+            {:error, msg, status} ->
               Logger.debug(msg)
-              # No cached create stub
-              %{data: %{repo: url}}
+              {%{data: %{repo: url}}, status}
           end
         end)
+
+      repos = Enum.map(cache_results, fn {repo, _status} -> repo end)
+      cache_statuses = Enum.map(cache_results, fn {_repo, status} -> Atom.to_string(status) end)
 
       # Update URL list
       urls =
@@ -98,14 +111,21 @@ defmodule LowendinsightGet.Analysis do
           !LowendinsightGet.Datastore.in_cache?(url) end)
         |> Enum.map(fn url -> url end)
 
+      cache_hits = Enum.count(cache_statuses, &(&1 == "hit"))
+      cache_misses = length(cache_statuses) - cache_hits
+
       # Update the state if we don't need to do any analysis, or do it
-      # TODO: this is ugly!!  refactor after writing a test
       if length(urls) == 0 do
         metadata = empty[:metadata]
         times = metadata[:times]
         end_time = DateTime.utc_now()
         times = Map.replace!(times, :end_time, end_time)
         metadata = Map.replace!(metadata, :times, times)
+        metadata = Map.put(metadata, :cache_status, %{
+          hits: cache_hits,
+          misses: cache_misses,
+          per_repo: cache_statuses
+        })
         updated_report = Map.replace!(empty, :metadata, metadata)
         updated_report = Map.replace!(updated_report, :state, "complete")
         final_report = Map.replace!(updated_report, :report, %{:repos => repos})
@@ -141,19 +161,21 @@ defmodule LowendinsightGet.Analysis do
           acc
         end
       end)
-    ## TODO: Populate empty with results from cache (within 30 days)
-    repos =
+    ## Populate with results from cache (within 30 days)
+    cache_results =
       urls
       |> Enum.map(fn url ->
         case LowendinsightGet.Datastore.get_from_cache(url, 28) do
-          {:ok, report} ->
-            Poison.decode!(report)
-          {:error, msg} ->
+          {:ok, report, :hit} ->
+            {Poison.decode!(report), :hit}
+          {:error, msg, status} ->
             Logger.debug(msg)
-            # No cached create stub
-            %{data: %{repo: url}}
+            {%{data: %{repo: url}}, status}
         end
       end)
+
+    repos = Enum.map(cache_results, fn {repo, _status} -> repo end)
+    cache_statuses = Enum.map(cache_results, fn {_repo, status} -> Atom.to_string(status) end)
 
     # Update URL list
     urls =
@@ -162,12 +184,20 @@ defmodule LowendinsightGet.Analysis do
         !LowendinsightGet.Datastore.in_cache?(url) end)
       |> Enum.map(fn url -> url end)
 
+    cache_hits = Enum.count(cache_statuses, &(&1 == "hit"))
+    cache_misses = length(cache_statuses) - cache_hits
+
     if length(urls) == 0 do
       metadata = job["metadata"]
       times = metadata["times"]
       end_time = DateTime.utc_now()
       times = Map.replace!(times, "end_time", end_time)
       metadata = Map.replace!(metadata, "times", times)
+      metadata = Map.put(metadata, "cache_status", %{
+        "hits" => cache_hits,
+        "misses" => cache_misses,
+        "per_repo" => cache_statuses
+      })
       updated_report = Map.replace!(job, "metadata", metadata)
       updated_report = Map.replace!(updated_report, "state", "complete")
       final_report = Map.replace!(updated_report, "report", %{:repos => repos})

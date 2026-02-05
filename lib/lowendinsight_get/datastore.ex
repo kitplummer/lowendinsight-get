@@ -12,6 +12,38 @@ defmodule LowendinsightGet.Datastore do
   require Logger
 
   @doc """
+  cache_key/1: converts a git repo URL into a structured cache key with format
+  {ecosystem}:{package}:{version}. For example:
+    https://github.com/org/repo -> github:org/repo:latest
+    https://gitlab.com/org/repo -> gitlab:org/repo:latest
+  """
+  def cache_key(url) do
+    uri = URI.parse(url)
+    ecosystem = uri.host
+      |> to_string()
+      |> String.replace_suffix(".com", "")
+      |> String.replace_suffix(".org", "")
+      |> String.replace_suffix(".io", "")
+
+    package = (uri.path || "/")
+      |> String.trim_leading("/")
+      |> String.trim_trailing("/")
+      |> String.trim_trailing(".git")
+
+    "#{ecosystem}:#{package}:latest"
+  end
+
+  @doc """
+  cache_ttl_seconds/0: returns the cache TTL in seconds, derived from config.
+  Uses LEI_CACHE_TTL_SECONDS if set, otherwise converts cache_ttl (days) to seconds.
+  """
+  def cache_ttl_seconds do
+    Application.get_env(:lowendinsight_get, :cache_ttl_seconds,
+      Application.get_env(:lowendinsight_get, :cache_ttl, 30) * 86400
+    )
+  end
+
+  @doc """
   write_event/1: takes in a report and writes it as an event, incrementing the event
   counter.  Will return {:ok, id} - id being the current event counter on success, or
   {:error, reason} if there is an error writing to Redis.
@@ -47,56 +79,60 @@ defmodule LowendinsightGet.Datastore do
   end
 
   @doc """
-  write_to_cache/2: takes in a url as the key, and the analysis report as value
-  and returns {:ok, res} on success, or {:error, res} on write error.
+  write_to_cache/2: takes in a url as the key, and the analysis report as value.
+  Stores under the structured cache key {ecosystem}:{package}:{version} with a
+  Redis TTL. Returns {:ok, res} on success, or {:error, res} on write error.
   """
   def write_to_cache(url, report) do
-    case Redix.command(:redix, ["SET", url, Poison.encode!(report)]) do
+    key = cache_key(url)
+    ttl = cache_ttl_seconds()
+    json = Poison.encode!(report)
+
+    case Redix.command(:redix, ["SETEX", key, ttl, json]) do
       {:ok, res} ->
-        Logger.debug("wrote report #{url}")
+        Logger.debug("wrote report #{key} (url: #{url}, ttl: #{ttl}s)")
         {:ok, res}
     end
   end
 
   @doc """
   get_from_cache/2: takes in a url and age in days, queries the datastore
-  and returns {:ok, report} if it exists, and {:not_found} if it does not,
-  or {:error, message} if there was an issue reading from the datastore.
+  using the structured cache key. Returns {:ok, report, :hit} on cache hit,
+  {:error, message, :miss} on cache miss. Redis TTL handles expiry, but
+  age-based validation is kept as a secondary check.
   """
   def get_from_cache(url, age) do
+    key = cache_key(url)
     ## NOTE: redix will return :ok even if key is not found, with
     ## the returned value as 'nil'
-    case Redix.command(:redix, ["GET", url]) do
+    case Redix.command(:redix, ["GET", key]) do
       {:ok, res} ->
-        Logger.debug("get report #{url}")
+        Logger.debug("get report #{key} (url: #{url})")
 
         case res do
           nil ->
-            {:error, "report not found"}
+            {:error, "report not found", :miss}
 
           _ ->
             r = Poison.decode!(res)
 
             case too_old?(r, age) do
-              true -> {:error, "current report not found"}
-              false -> {:ok, res}
+              true -> {:error, "current report not found", :stale}
+              false -> {:ok, res, :hit}
             end
         end
     end
   end
 
   @doc """
-  in_cache?/1: takes in a url and returns true in cache, false if not
+  in_cache?/1: takes in a url and returns true in cache, false if not.
+  Uses the structured cache key format.
   """
   def in_cache?(url) do
-    case Redix.command(:redix, ["GET", url]) do
-      {:ok, res} ->
-        case res do
-          nil ->
-            false
-          _ ->
-            true
-        end
+    key = cache_key(url)
+    case Redix.command(:redix, ["EXISTS", key]) do
+      {:ok, 1} -> true
+      {:ok, 0} -> false
     end
   end
 
