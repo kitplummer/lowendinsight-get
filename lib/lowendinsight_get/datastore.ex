@@ -125,6 +125,25 @@ defmodule LowendinsightGet.Datastore do
   end
 
   @doc """
+  get_from_cache_any_age/1: looks up a cached report without checking TTL.
+  Returns {:ok, data, :stale} if found, {:error, msg, :miss} if not.
+  Uses structured cache key format.
+  """
+  def get_from_cache_any_age(url) do
+    key = cache_key(url)
+    case Redix.command(:redix, ["GET", key]) do
+      {:ok, res} ->
+        case res do
+          nil ->
+            {:error, "report not found", :miss}
+
+          _ ->
+            {:ok, res, :stale}
+        end
+    end
+  end
+
+  @doc """
   in_cache?/1: takes in a url and returns true in cache, false if not.
   Uses the structured cache key format.
   """
