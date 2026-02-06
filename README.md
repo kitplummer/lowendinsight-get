@@ -17,10 +17,10 @@ Supply chain security analysis API for git repositories.
 
 ## Current Version
 
-**Use v0.9.1** (not v0.9.0 - container build was broken)
+**Use v0.9.2** (v0.9.1 had template path issue, v0.9.0 had container build issue)
 
 ```bash
-docker pull ghcr.io/kitplummer/lowendinsight-get:0.9.1
+docker pull ghcr.io/kitplummer/lowendinsight-get:0.9.2
 ```
 
 ## Documentation
