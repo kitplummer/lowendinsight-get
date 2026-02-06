@@ -3,8 +3,8 @@
 # the BSD 3-Clause license. See the LICENSE file for details.
 
 # The version of Alpine to use for the final image
-# This should match the version of Alpine that the `elixir:1.7.2-alpine` image uses
-ARG ALPINE_VERSION=3.16
+# This should match the version of Alpine that the elixir:1.15.7-alpine image uses
+ARG ALPINE_VERSION=3.18
 
 FROM elixir:1.15.7-alpine AS builder
 
@@ -78,11 +78,11 @@ RUN apk update && \
     apk add --no-cache \
       bash \
       git \
-      openssl-dev \
+      openssl \
       libstdc++ \
       libgcc \
-      libcrypto1.1 \
-      libpq
+      libpq \
+      ncurses-libs
 
 ENV REPLACE_OS_VARS=true \
     APP_NAME=${APP_NAME} \
