@@ -15,6 +15,14 @@ Supply chain security analysis API for git repositories.
 - **Air-Gap Support**: Export/import cache for disconnected environments
 - **Job Queue**: Oban-based persistent job queue with PostgreSQL
 
+## Current Version
+
+**Use v0.9.1** (not v0.9.0 - container build was broken)
+
+```bash
+docker pull ghcr.io/kitplummer/lowendinsight-get:0.9.1
+```
+
 ## Documentation
 
 - **[API Reference](docs/API.md)** - Complete REST API documentation
