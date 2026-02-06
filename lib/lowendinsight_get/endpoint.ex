@@ -10,7 +10,6 @@ defmodule LowendinsightGet.Endpoint do
   use Plug.ErrorHandler
 
   # alias Plug.{Adapters.Cowboy}
-  @template_dir "lib/lowendinsight_get/templates"
 
   require Logger
   alias Plug.{Adapters.Cowboy}
@@ -330,8 +329,9 @@ defmodule LowendinsightGet.Endpoint do
   # defp config, do: Application.fetch_env(:lowendinsight_get, __MODULE__)
 
   defp render(%{status: status} = conn, template, assigns) do
+    template_dir = Path.join(:code.priv_dir(:lowendinsight_get), "templates")
     body =
-      @template_dir
+      template_dir
       |> Path.join(template)
       |> String.replace_suffix(".html", ".html.eex")
       |> EEx.eval_file(assigns)
