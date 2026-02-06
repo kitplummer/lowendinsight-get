@@ -298,6 +298,60 @@ Required secrets:
 - `DATABASE_URL` - PostgreSQL credentials
 - `LEI_GH_TOKEN` - GitHub API token (optional but recommended)
 
+## Cache Performance
+
+### Performance Benchmarks (2026-02-06)
+
+Tested on localhost with Docker containers (lei-redis, lei-postgres).
+
+#### Cache Hit Latency
+
+| Metric | Value | Target | Status |
+|--------|-------|--------|--------|
+| Redis PING baseline | 0.38ms avg | - | - |
+| Cache stats endpoint | 2.5-3.8ms | <10ms | PASS |
+| Cache export (3 entries) | 3.4-4.1ms | <10ms | PASS |
+| Cache export (103 entries) | 28-47ms | - | OK |
+| Cache import (103 entries) | 32-47ms | - | OK |
+
+#### Concurrent Request Performance
+
+| Test | Requests | Duration | Throughput |
+|------|----------|----------|------------|
+| Stats endpoint (parallel) | 10 | 5-7ms each | 200+ req/s |
+| Export endpoint (parallel) | 5 | 68-72ms each | ~70 req/s |
+| Stress test (stats) | 50 | 128ms total | ~390 req/s |
+
+#### Memory Usage
+
+| Entries | Redis Memory | Memory per Entry |
+|---------|--------------|------------------|
+| 3 | 1.01MB | ~340KB (includes overhead) |
+| 103 | 1.29MB | ~3KB/entry |
+
+Redis configuration:
+- `maxmemory`: unlimited (default)
+- `maxmemory_policy`: noeviction
+- Fragmentation ratio: ~10-14x (expected for small datasets)
+
+#### Key Statistics (after stress test)
+
+- Total connections: 260
+- Commands processed: 3,490
+- Keyspace hits: 2,387 (87%)
+- Keyspace misses: 352 (13%)
+- Rejected connections: 0
+
+### Performance Recommendations
+
+1. **Cache hit latency is excellent** - well under 10ms target
+2. **Export scales linearly** - ~0.3-0.5ms per entry
+3. **Import performance is consistent** - ~0.3-0.5ms per entry
+4. **No connection rejections** under concurrent load
+5. For large caches (>10k entries), consider:
+   - Streaming export for memory efficiency
+   - Chunked import to avoid timeouts
+
 ## Maintenance
 
 ### Cache Cleanup
