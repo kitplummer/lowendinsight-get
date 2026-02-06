@@ -28,7 +28,7 @@ defmodule LowendinsightGet.MixProject do
       {:plug, "~> 1.14"},
       {:joken, "~> 2.5.0"},
       {:elixir_uuid, "~> 1.2"},
-      {:cowboy, "~> 2.9", overide: true},
+      {:cowboy, "~> 2.9", override: true},
       {:plug_cowboy, "~> 2.0"},
       {:credo, "~> 1.6", except: :prod, runtime: false},
       {:redix, ">= 0.0.0"},
@@ -41,7 +41,7 @@ defmodule LowendinsightGet.MixProject do
       ## {:lowendinsight, git: "git@bitbucket.org:gtri/lowendinsight", branch: "develop"}
       {:lowendinsight, "~> 0.9.0"},
       {:httpoison_retry, "~> 1.1.0"},
-      {:distillery, "~> 2.1"},
+      {:distillery, "~> 2.1", only: :prod, runtime: false},
       {:excoveralls, "~> 0.14.0", only: :test}
     ]
   end
