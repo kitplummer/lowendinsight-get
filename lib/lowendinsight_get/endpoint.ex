@@ -57,6 +57,15 @@ defmodule LowendinsightGet.Endpoint do
     |> send_resp(200, html)
   end
 
+  get "/openapi.json" do
+    {:ok, spec} = File.read("#{:code.priv_dir(:lowendinsight_get)}/static/openapi.json")
+
+    conn
+    |> put_resp_content_type(@content_type)
+    |> put_resp_header("access-control-allow-origin", "*")
+    |> send_resp(200, spec)
+  end
+
   get "/gh_trending" do
     languages = Application.get_env(:lowendinsight_get, :languages)
     render(conn, "index.html", languages: languages)

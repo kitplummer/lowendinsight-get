@@ -1,159 +1,34 @@
+<!DOCTYPE html>
 <!--
 # Copyright (C) 2020 by the Georgia Tech Research Institute (GTRI)
 # This software may be modified and distributed under the terms of
 # the BSD 3-Clause license. See the LICENSE file for details.
 -->
-<html>
-  <body bgcolor="#FFFFFF">
-    <h1>LowEndInsight</h1>
-    A simple OSS risk (bus-factor) analysis tool.  Provides insight into the source repository, looking at basic data such as contributors and commits.  Governance is applied by comparing data against pre-defined par-levels for risk tolerance.
-
-    <h2>Using</h2>
-    POST a JSON object with a "urls" element pointing to an array of one or more git repos, which will return a UUID for the analysis. Then GET it by the fetching the UUID.
-
-      <br/><br/>
-      <h2>Example</h2>
-      <code>
-      $ curl -s -d '{"urls":["https://bitbucket.org/kitplummer/clikan","https://github.com/kitplummer/xmpp4rails"]}' -H "Content-Type: application/json" -X POST http://192.168.99.109:30579/v1/analyze | jq
-      </code>
-      <br/><br/>Returns:<br/>
-      <pre>
-
-        {
-          "metadata": {
-            "times": {
-              "duration": 0,
-              "end_time": "",
-              "start_time": "2020-01-23T20:33:58.131642Z"
-            }
-          },
-          "report": {
-            "repos": [
-              {
-                "data": {
-                  "repo": "https://bitbucket.org/kitplummer/clikan"
-                }
-              },
-              {
-                "data": {
-                  "repo": "https://github.com/kitplummer/xmpp4rails"
-                }
-              }
-            ]
-          },
-          "state": "incomplete",
-          "uuid": "ae88a430-3e1f-11ea-a207-0242ac110007"
-        }
-    </pre>
-    Then fetch the results:
-    <br/><br/>
-    <code>
-      $ curl http://192.168.99.109:30579/v1/analzye/ae88a430-3e1f-11ea-a207-0242ac110007 | jq
-    </code>
-    <br/><br/>Returns:<br/>
-    <pre>
-      {
-        "metadata": {
-          "repo_count": 2,
-          "risk_counts": {
-            "critical": 2
-          },
-          "times": {
-            "duration": 0,
-            "end_time": "2020-01-23T20:33:58.555362Z",
-            "start_time": "2020-01-23T20:33:58.131642Z"
-          }
-        },
-        "report": {
-          "repos": [
-            {
-              "data": {
-                "config": {
-                  "critical_contributor_level": 2,
-                  "high_functional_contributors_level": 3,
-                  "high_currency_level": 52,
-                  "critical_functional_contributors_level": 2,
-                  "medium_large_commit_level": 0.05,
-                  "high_contributor_level": 3,
-                  "high_large_commit_level": 0.15,
-                  "medium_contributor_level": 5,
-                  "critical_currency_level": 104,
-                  "critical_large_commit_level": 0.3,
-                  "medium_currency_level": 26,
-                  "medium_functional_contributors_level": 5
-                },
-                "repo": "https://bitbucket.org/kitplummer/clikan",
-                "results": {
-                  "commit_currency_risk": "medium",
-                  "commit_currency_weeks": 51,
-                  "contributor_count": 2,
-                  "contributor_risk": "high",
-                  "functional_contributor_names": [
-                    "Kit Plummer"
-                  ],
-                  "functional_contributors": 1,
-                  "functional_contributors_risk": "critical",
-                  "large_recent_commit_risk": "medium",
-                  "recent_commit_size_in_percent_of_codebase": 0.080078125
-                },
-                "risk": "critical"
-              },
-              "header": {
-                "duration": 0,
-                "end_time": "2020-01-23T20:33:58.554693Z",
-                "library_version": "0.3.1",
-                "source_client": "lei-get",
-                "start_time": "2020-01-23T20:33:58.137963Z",
-                "uuid": "aec932de-3e1f-11ea-9ac3-0242ac110007"
-              }
-            },
-            {
-              "data": {
-                "config": {
-                  "critical_contributor_level": 2,
-                  "high_functional_contributors_level": 3,
-                  "high_currency_level": 52,
-                  "critical_functional_contributors_level": 2,
-                  "medium_large_commit_level": 0.05,
-                  "high_contributor_level": 3,
-                  "high_large_commit_level": 0.15,
-                  "medium_contributor_level": 5,
-                  "critical_currency_level": 104,
-                  "critical_large_commit_level": 0.3,
-                  "medium_currency_level": 26,
-                  "medium_functional_contributors_level": 5
-                },
-                "project_types": {"node": ["package.json"]},
-                "repo": "https://github.com/kitplummer/xmpp4rails",
-                "results": {
-                  "commit_currency_risk": "critical",
-                  "commit_currency_weeks": 576,
-                  "contributor_count": 1,
-                  "contributor_risk": "critical",
-                  "functional_contributor_names": [
-                    "Kit Plummer"
-                  ],
-                  "functional_contributors": 1,
-                  "functional_contributors_risk": "critical",
-                  "large_recent_commit_risk": "low",
-                  "recent_commit_size_in_percent_of_codebase": 0.003683241252302026
-                },
-                "risk": "critical"
-              },
-              "header": {
-                "duration": 0,
-                "end_time": "2020-01-23T20:33:58.436148Z",
-                "library_version": "0.3.1",
-                "source_client": "lei-get",
-                "start_time": "2020-01-23T20:33:58.138130Z",
-                "uuid": "aeb717a2-3e1f-11ea-9d3c-0242ac110007"
-              }
-            }
-          ],
-          "uuid": "aec93c7a-3e1f-11ea-8579-0242ac110007"
-        },
-        "state": "complete"
-      }
-    </pre>
-  </body bgcolor="#E6E6FA">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LowEndInsight API Documentation</title>
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style>
+    html { box-sizing: border-box; overflow-y: scroll; }
+    *, *:before, *:after { box-sizing: inherit; }
+    body { margin: 0; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: "/openapi.json",
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIBundle.SwaggerUIStandalonePreset
+      ],
+      layout: "BaseLayout"
+    });
+  </script>
+</body>
 </html>
