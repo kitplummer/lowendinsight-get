@@ -86,7 +86,9 @@ RUN apk update && \
 
 ENV REPLACE_OS_VARS=true \
     APP_NAME=${APP_NAME} \
-    ERL_AFLAGS="-proto_dist inet6_tcp"
+    ERL_AFLAGS="-proto_dist inet6_tcp" \
+    DATABASE_URL="ecto://postgres:postgres@localhost/lowendinsight_get_prod" \
+    REDIS_URL="redis://localhost:6379"
 
 WORKDIR /opt/app
 
