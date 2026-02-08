@@ -418,7 +418,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\", \"https://github.com/gtri/lowendinsight\"]}"
+					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\", \"https://github.com/kitplummer/lowendinsight\"]}"
 				},
 				"url": {
 					"raw": "{{host}}/v1/analyze",

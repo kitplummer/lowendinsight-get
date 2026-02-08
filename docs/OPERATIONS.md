@@ -81,7 +81,7 @@ components:
         valuesFiles:
           - values.yaml
     images:
-      - ghcr.io/gtri/lowendinsight-get:latest
+      - ghcr.io/kitplummer/lowendinsight-get:latest
 ```
 
 ## Configuration

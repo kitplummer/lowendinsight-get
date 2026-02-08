@@ -4,7 +4,7 @@
 
 Supply chain security analysis API for git repositories.
 
-![default_elixir_ci](https://github.com/gtri/lowendinsight-get/workflows/default_elixir_ci/badge.svg)
+![default_elixir_ci](https://github.com/kitplummer/lowendinsight-get/workflows/default_elixir_ci/badge.svg)
 
 ## Features
 
@@ -32,7 +32,7 @@ docker pull ghcr.io/kitplummer/lowendinsight-get:0.9.2
 ## Quick Start
 
 See `lowendinsight`'s README for more details on the underlying
-functionality: https://github.com/gtri/lowendinsight
+functionality: https://github.com/kitplummer/lowendinsight
 
 The workflow for this API is asynchronous.  The POST to `/v1/analyze` will return immediately, providing you with a `uuid` for the job.
 
@@ -46,7 +46,7 @@ Look at `config/config.exs` or if you're building your own container
 `rel/config/prod.exs` (which is used as the container's prod config :)) for how to set the governance par levels, and the cache TTL.
 
 The configuration items are also explained at
-https://github.com/gtri/lowendinsight in more detail.
+https://github.com/kitplummer/lowendinsight in more detail.
 
 ## Note: For Windows, avoid using single quotes in commands.  Use double quotes instead and escape nested quotes i.e. use \"
 
@@ -185,7 +185,7 @@ Thanks for considering, we need your contributions to help this project come to 
 
 Here are some important resources:
 
-  * Bugs? [Issues](https://github.com/gtri/lowendinsight-get/issues/new) is where to report them
+  * Bugs? [Issues](https://github.com/kitplummer/lowendinsight-get/issues/new) is where to report them
 
 ### Style
 
@@ -214,7 +214,7 @@ here too.
 
 ### Submitting changes
 
-Please send a [Pull Request](https://github.com/gtri/lowendinsight-get/pull-requests/) with a clear list of what you've done and why. Please follow Elixir coding conventions (above in Style) and make sure all of your commits are atomic (one feature per commit).
+Please send a [Pull Request](https://github.com/kitplummer/lowendinsight-get/pull-requests/) with a clear list of what you've done and why. Please follow Elixir coding conventions (above in Style) and make sure all of your commits are atomic (one feature per commit).
 
 Always write a clear log message for your commits. One-line messages are fine for small changes, but bigger changes should look like this:
 
