@@ -301,23 +301,29 @@ defmodule LowendinsightGet.Endpoint do
   end
 
   defp fetch_job(uuid) do
-    case LowendinsightGet.Datastore.get_job(uuid) do
-      {:ok, job} ->
-        job_obj = Poison.decode!(job)
-        case job_obj["state"] do
-          "complete" -> {200, job}
-          "incomplete" ->
-            Logger.debug("refreshing report")
-            refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
-            {200, Poison.encode!(refreshed_job)}
-          state ->
-            Logger.debug("job state: #{inspect(state)}, treating as incomplete")
-            refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
-            {200, Poison.encode!(refreshed_job)}
-        end
+    try do
+      case LowendinsightGet.Datastore.get_job(uuid) do
+        {:ok, job} ->
+          job_obj = Poison.decode!(job)
+          case job_obj["state"] do
+            "complete" -> {200, job}
+            "incomplete" ->
+              Logger.debug("refreshing report")
+              refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
+              {200, Poison.encode!(refreshed_job)}
+            state ->
+              Logger.debug("job state: #{inspect(state)}, treating as incomplete")
+              refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
+              {200, Poison.encode!(refreshed_job)}
+          end
 
-      {:error, _job} ->
-        {404, Poison.encode!(%{:error => "invalid UUID provided, no job found."})}
+        {:error, _job} ->
+          {404, Poison.encode!(%{:error => "invalid UUID provided, no job found."})}
+      end
+    rescue
+      e ->
+        Logger.error("Error fetching job #{uuid}: #{inspect(e)}")
+        {500, Poison.encode!(%{error: "Internal error fetching job", details: Exception.message(e)})}
     end
   end
 
