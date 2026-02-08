@@ -25,6 +25,7 @@ docker pull ghcr.io/kitplummer/lowendinsight-get:0.9.2
 
 ## Documentation
 
+- **[Interactive API Docs](http://localhost:4000/doc)** - Swagger UI for exploring and testing the API
 - **[API Reference](docs/API.md)** - Complete REST API documentation
 - **[Operations Guide](docs/OPERATIONS.md)** - Deployment, configuration, and maintenance
 
@@ -120,6 +121,13 @@ Full API documentation: **[docs/API.md](docs/API.md)**
 | `POST` | `/v1/analyze` | Analyze git repository URLs |
 | `GET` | `/v1/analyze/:uuid` | Get analysis results by job ID |
 | `POST` | `/v1/analyze/sbom` | Analyze SBOM (CycloneDX/SPDX) |
+
+### API Documentation
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/doc` | Swagger UI - interactive API explorer |
+| `GET` | `/openapi.json` | OpenAPI 3.0 specification (JSON) |
 
 ### Cache Management
 

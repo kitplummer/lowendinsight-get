@@ -26,6 +26,30 @@ Returns HTML page. Useful for health checks.
 
 ---
 
+### Interactive API Documentation
+
+#### `GET /doc`
+
+Serves the Swagger UI, an interactive API explorer for testing endpoints directly from the browser. The UI is loaded from the bundled OpenAPI 3.0 specification.
+
+**Response:** `200 OK` with HTML body (Swagger UI)
+
+No authentication required.
+
+---
+
+#### `GET /openapi.json`
+
+Returns the OpenAPI 3.0 specification for the LowEndInsight API in JSON format. This spec powers the Swagger UI at `/doc` and can be imported into tools like Postman, Insomnia, or used for client code generation.
+
+**Response:** `200 OK` with `application/json` body
+
+**CORS:** The `Access-Control-Allow-Origin: *` header is set, allowing the spec to be fetched from any origin.
+
+No authentication required.
+
+---
+
 ### Single/Multiple URL Analysis
 
 #### `POST /v1/analyze`
