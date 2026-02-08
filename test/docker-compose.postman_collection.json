@@ -51,7 +51,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"]}"
+					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"],\"cache_mode\":\"async\"}"
 				},
 				"url": {
 					"raw": "http://localhost:4444/v1/analyze",
@@ -160,7 +160,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"]}"
+					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"],\"cache_mode\":\"async\"}"
 				},
 				"url": {
 					"raw": "http://localhost:4444/v1/analyze",
