@@ -536,10 +536,74 @@
         }
       }
     },
+    "/gh_trending": {
+      "get": {
+        "summary": "List configured trending languages",
+        "description": "Returns an HTML page listing all configured programming languages that can be analyzed for GitHub trending repositories. Each language links to its trending analysis report.",
+        "operationId": "listGhTrendingLanguages",
+        "tags": ["GitHub Trending"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML page listing available languages",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gh_trending/{language}": {
+      "get": {
+        "summary": "Get trending report for a language",
+        "description": "Returns an HTML page displaying the LowEndInsight analysis report for trending GitHub repositories in the specified language. Results come from the most recent analysis run triggered via POST /v1/gh_trending/process. If no analysis has been run yet, an empty report is shown.",
+        "operationId": "getGhTrendingByLanguage",
+        "tags": ["GitHub Trending"],
+        "security": [],
+        "parameters": [
+          {
+            "name": "language",
+            "in": "path",
+            "required": true,
+            "description": "Programming language to get trending analysis for (e.g. elixir, python, rust)",
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "elixir": {
+                "value": "elixir"
+              },
+              "python": {
+                "value": "python"
+              },
+              "rust": {
+                "value": "rust"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML page with trending analysis report for the language",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/gh_trending/process": {
       "post": {
         "summary": "Trigger GitHub trending analysis",
-        "description": "Kicks off a background task to analyze all configured trending languages from GitHub. Returns immediately.",
+        "description": "Kicks off a background task to analyze all configured trending languages from GitHub. For each language, fetches the daily trending repositories, optionally filters by repository size, and runs LowEndInsight analysis on the top N repos (configured via LEI_NUM_OF_REPOS, default 10). Results are cached in Redis and viewable via GET /gh_trending/:language. Returns immediately while processing continues in the background.",
         "operationId": "processGhTrending",
         "tags": ["GitHub Trending"],
         "responses": {

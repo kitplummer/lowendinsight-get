@@ -274,6 +274,78 @@ Import pre-warmed cache (typically from export).
 
 ---
 
+### GitHub Trending
+
+LowEndInsight can analyze trending repositories from GitHub, providing risk analysis for popular projects across programming languages. Trending data is fetched from GitHub's daily trending lists and analyzed in bulk.
+
+#### `GET /gh_trending`
+
+List all configured programming languages available for trending analysis. Returns an HTML page.
+
+**Authentication:** None required
+
+**Response:** `200 OK` with HTML body listing languages (e.g. elixir, python, go, rust, java, javascript, ruby, c, c++, c#, haskell, php, scala, swift, objective-c, kotlin, shell, typescript)
+
+**Example:**
+```
+curl http://localhost:4000/gh_trending
+```
+
+---
+
+#### `GET /gh_trending/:language`
+
+View the most recent trending analysis report for a specific language. Returns an HTML page showing the LowEndInsight risk analysis for trending GitHub repositories in that language.
+
+**Authentication:** None required
+
+**Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `language` | string (path) | Programming language name (e.g. `elixir`, `python`, `rust`) |
+
+**Response:** `200 OK` with HTML report. If no analysis has been run yet, an empty report is displayed.
+
+**Example:**
+```
+curl http://localhost:4000/gh_trending/elixir
+```
+
+---
+
+#### `POST /v1/gh_trending/process`
+
+Trigger a background analysis of trending GitHub repositories for all configured languages. Returns immediately while processing continues asynchronously.
+
+For each language, this endpoint:
+1. Fetches the daily trending repositories from GitHub
+2. Optionally filters out large repositories (if `LEI_CHECK_REPO_SIZE` is enabled)
+3. Runs LowEndInsight analysis on the top N repos (configured via `LEI_NUM_OF_REPOS`, default 10)
+4. Stores results in Redis, viewable via `GET /gh_trending/:language`
+
+**Authentication:** Bearer token required
+
+**Response (200 OK):**
+```
+"Processing languages..."
+```
+
+**Example:**
+```
+curl -X POST http://localhost:4000/v1/gh_trending/process \
+  -H "Authorization: Bearer <token>"
+```
+
+**Configuration (environment variables):**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LEI_NUM_OF_REPOS` | `10` | Number of trending repos to analyze per language |
+| `LEI_WAIT_TIME` | `7200000` | Time between processing cycles (ms) |
+| `LEI_GH_TOKEN` | (empty) | GitHub API token for repository size queries |
+| `LEI_CHECK_REPO_SIZE` | `false` | Filter out repositories larger than 1GB |
+
+---
+
 ### URL Validation
 
 #### `GET /validate-url/url=:encoded_url`
