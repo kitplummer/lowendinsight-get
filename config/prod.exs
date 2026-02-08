@@ -79,8 +79,11 @@ config :lowendinsight,
 config :redix,
   redis_url: System.get_env("REDIS_URL")
 
+# DATABASE_URL format: ecto://user:pass@host/database
+database_url = System.get_env("DATABASE_URL") || "ecto://postgres:postgres@localhost/lowendinsight_get_prod"
+
 config :lowendinsight_get, LowendinsightGet.Repo,
-  url: System.get_env("DATABASE_URL"),
+  url: database_url,
   pool_size: 5
 
 config :lowendinsight_get, Oban,

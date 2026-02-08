@@ -64,8 +64,12 @@ config :lowendinsight,
   ## Base directory structure for temp clones
   base_temp_dir: System.get_env("LEI_BASE_TEMP_DIR") || "/tmp"
 
+# DATABASE_URL format: ecto://user:pass@host/database
+# Fallback to postgres:postgres@localhost if not set (for development/testing)
+database_url = System.get_env("DATABASE_URL") || "ecto://postgres:postgres@localhost/lowendinsight_get_prod"
+
 config :lowendinsight_get, LowendinsightGet.Repo,
-  url: System.get_env("DATABASE_URL"),
+  url: database_url,
   pool_size: 5
 
 config :lowendinsight_get, Oban,
