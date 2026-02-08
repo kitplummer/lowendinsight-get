@@ -77,8 +77,7 @@ config :lowendinsight_get, Oban,
   queues: [analysis: String.to_integer(System.get_env("OBAN_ANALYSIS_CONCURRENCY") || "5")]
 
 config :redix,
-  redis_url: System.get_env("REDIS_URL"),
-  socket_opts: [:inet6]
+  redis_url: System.get_env("REDIS_URL")
 
 config :lowendinsight_get, LowendinsightGet.Scheduler,
 jobs: [
