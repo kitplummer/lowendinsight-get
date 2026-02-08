@@ -51,7 +51,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"]}"
+					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"],\"cache_mode\":\"blocking\",\"cache_timeout\":120000}"
 				},
 				"url": {
 					"raw": "http://localhost:4444/v1/analyze",
@@ -96,7 +96,7 @@
 					"script": {
 						"id": "d6af0520-5ff4-4348-aaff-8b21b0728dc0",
 						"exec": [
-							"setTimeout(function(){}, [3000]);"
+							""
 						],
 						"type": "text/javascript"
 					}
@@ -171,7 +171,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"]}"
+					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"],\"cache_mode\":\"blocking\",\"cache_timeout\":120000}"
 				},
 				"url": {
 					"raw": "http://localhost:4444/v1/analyze",
@@ -216,7 +216,7 @@
 					"script": {
 						"id": "d6af0520-5ff4-4348-aaff-8b21b0728dc0",
 						"exec": [
-							"//setTimeout(function(){}, [3000]);"
+							""
 						],
 						"type": "text/javascript"
 					}
