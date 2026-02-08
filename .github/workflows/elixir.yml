@@ -59,10 +59,8 @@ jobs:
         run: MIX_ENV=test mix ecto.create && MIX_ENV=test mix ecto.migrate
       - name: Run Tests
         run: MIX_ENV=test mix coveralls.github
-      - name: Build Container
-        run: make build
-      - name: docker compose run LEI-get
-        run: docker compose up -d
+      - name: docker compose build and run
+        run: docker compose up -d --build
       - name: Sleep
         uses: jakejarvis/wait-action@master
         with:

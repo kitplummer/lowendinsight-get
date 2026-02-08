@@ -11,6 +11,9 @@ services:
     image: "redis:alpine"
   lei-get:
     image: "kitplummer/lowendinsight_get:latest"
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "4444:4444"
     environment:
