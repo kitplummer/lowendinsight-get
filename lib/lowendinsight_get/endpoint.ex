@@ -310,6 +310,10 @@ defmodule LowendinsightGet.Endpoint do
             Logger.debug("refreshing report")
             refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
             {200, Poison.encode!(refreshed_job)}
+          state ->
+            Logger.debug("job state: #{inspect(state)}, treating as incomplete")
+            refreshed_job = LowendinsightGet.Analysis.refresh_job(job_obj)
+            {200, Poison.encode!(refreshed_job)}
         end
 
       {:error, _job} ->
