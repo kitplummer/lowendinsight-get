@@ -65,5 +65,9 @@ jobs:
         uses: jakejarvis/wait-action@master
         with:
           time: '30s'
+      - name: Debug container status
+        run: |
+          docker compose ps
+          docker compose logs lei-get
       - name: Postman tests
         run: newman run test/docker-compose.postman_collection.json --timeout-request 30000
