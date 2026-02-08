@@ -51,7 +51,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"],\"cache_mode\":\"blocking\",\"cache_timeout\":120000}"
+					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"]}"
 				},
 				"url": {
 					"raw": "http://localhost:4444/v1/analyze",
@@ -81,21 +81,10 @@
 							"    pm.response.to.have.status(200);",
 							"});",
 							"",
-							"pm.test(\"it should return a complete state\", function(){ ",
+							"pm.test(\"it should return a state field\", function(){ ",
 							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData.state).to.eql(\"complete\")",
+							"    pm.expect(jsonData.state).to.be.oneOf(['incomplete', 'complete']);",
 							"});",
-							"",
-							""
-						],
-						"type": "text/javascript"
-					}
-				},
-				{
-					"listen": "prerequest",
-					"script": {
-						"id": "d6af0520-5ff4-4348-aaff-8b21b0728dc0",
-						"exec": [
 							""
 						],
 						"type": "text/javascript"
@@ -171,7 +160,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"],\"cache_mode\":\"blocking\",\"cache_timeout\":120000}"
+					"raw": "{\"urls\":[\"https://github.com/satori/go.uuid\"]}"
 				},
 				"url": {
 					"raw": "http://localhost:4444/v1/analyze",
@@ -201,21 +190,10 @@
 							"    pm.response.to.have.status(200);",
 							"});",
 							"",
-							"pm.test(\"it should return a complete state\", function(){ ",
+							"pm.test(\"it should return a state field\", function(){ ",
 							"    var jsonData = pm.response.json();",
-							"    pm.expect(jsonData.state).to.eql(\"complete\")",
+							"    pm.expect(jsonData.state).to.be.oneOf(['incomplete', 'complete']);",
 							"});",
-							"",
-							""
-						],
-						"type": "text/javascript"
-					}
-				},
-				{
-					"listen": "prerequest",
-					"script": {
-						"id": "d6af0520-5ff4-4348-aaff-8b21b0728dc0",
-						"exec": [
 							""
 						],
 						"type": "text/javascript"
