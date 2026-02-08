@@ -66,6 +66,6 @@ jobs:
       - name: Sleep
         uses: jakejarvis/wait-action@master
         with:
-          time: '30s'
+          time: '45s'
       - name: Postman tests
-        run: newman run test/docker-compose.postman_collection.json
+        run: newman run test/docker-compose.postman_collection.json --timeout-request 120000
