@@ -19,6 +19,7 @@ services:
     environment:
       - REDIS_URL=redis://redis-master:6379/3
       - DATABASE_URL=ecto://postgres:postgres@postgres/lowendinsight_get_prod
+      - LEI_CHECK_REPO_SIZE=false
     depends_on:
       - postgres
       - redis-master
