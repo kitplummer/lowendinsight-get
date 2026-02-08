@@ -10,6 +10,7 @@ Supply chain security analysis API for git repositories.
 
 - **URL Analysis**: Analyze single or multiple git repository URLs
 - **SBOM Analysis**: Parse CycloneDX/SPDX SBOMs and analyze all dependencies
+- **GitHub Trending**: Analyze trending repositories across programming languages
 - **Caching**: Redis-backed cache with configurable TTL
 - **Cache Modes**: `blocking`, `async`, `stale` for flexible cache-miss handling
 - **Air-Gap Support**: Export/import cache for disconnected environments
@@ -17,10 +18,10 @@ Supply chain security analysis API for git repositories.
 
 ## Current Version
 
-**Use v0.9.2** (v0.9.1 had template path issue, v0.9.0 had container build issue)
+**Use v0.9.3** (v0.9.2 had CI/Docker networking issues, v0.9.1 had template path issue, v0.9.0 had container build issue)
 
 ```bash
-docker pull ghcr.io/kitplummer/lowendinsight-get:0.9.2
+docker pull ghcr.io/kitplummer/lowendinsight-get:0.9.3
 ```
 
 ## Documentation
@@ -136,6 +137,14 @@ Full API documentation: **[docs/API.md](docs/API.md)**
 | `GET` | `/v1/cache/stats` | Get cache statistics |
 | `GET` | `/v1/cache/export` | Export cache for air-gapped deployment |
 | `POST` | `/v1/cache/import` | Import pre-warmed cache |
+
+### GitHub Trending
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/gh_trending` | List available languages |
+| `GET` | `/gh_trending/:language` | View trending report for language |
+| `POST` | `/v1/gh_trending/process` | Trigger trending analysis (async) |
 
 ### Example: Analyze URLs
 
