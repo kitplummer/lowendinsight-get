@@ -187,7 +187,7 @@ defmodule LowendinsightGet.EndpointTest do
     # Assert the response and status
     assert conn.state == :sent
     assert conn.status == 200
-    assert String.contains?(conn.resp_body, "<html>")
+    assert String.contains?(conn.resp_body, "swagger-ui")
   end
 
   test "it returns 200 when report is valid for the /url= endpoint" do
