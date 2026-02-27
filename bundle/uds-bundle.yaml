@@ -55,6 +55,16 @@ packages:
                 namespace: lei
                 secretName: lei-valkey-password
                 secretKey: password
+            - path: additionalNetworkAllow
+              value:
+                - direction: Ingress
+                  selector:
+                    app.kubernetes.io/name: valkey
+                  remoteNamespace: lei
+                  remoteSelector:
+                    app.kubernetes.io/name: lowendinsight-get
+                  port: 6379
+                  description: "LEI app access to Valkey"
 
   - name: lei-get
     path: ../

@@ -73,6 +73,20 @@ config:
   redisUrl: "redis://valkey-primary.valkey.svc.cluster.local:6379"
   # -- PostgreSQL connection URL (fallback if not using operator secret)
   databaseUrl: ""
+  # -- Cache TTL in days
+  cacheTtl: "30"
+  # -- Enable cache cleanup job
+  cacheCleanEnable: "true"
+  # -- Check repo size before cloning
+  checkRepoSize: "true"
+  # -- Default cache timeout in milliseconds
+  defaultCacheTimeout: "30000"
+  # -- Analysis wait time in milliseconds
+  waitTime: "7200000"
+  # -- Max concurrent analysis jobs per core
+  jobsPerCoreMax: "1"
+  # -- Base directory for temp git clones
+  baseTempDir: "/tmp"
 
 # -- Database configuration for Zalando postgres-operator integration
 database:
@@ -95,20 +109,6 @@ valkey:
   existingSecret: ""
   # -- Key name in the existing secret
   secretKey: "password"
-  # -- Cache TTL in days
-  cacheTtl: "30"
-  # -- Enable cache cleanup job
-  cacheCleanEnable: "true"
-  # -- Check repo size before cloning
-  checkRepoSize: "true"
-  # -- Default cache timeout in milliseconds
-  defaultCacheTimeout: "30000"
-  # -- Analysis wait time in milliseconds
-  waitTime: "7200000"
-  # -- Max concurrent analysis jobs per core
-  jobsPerCoreMax: "1"
-  # -- Base directory for temp git clones
-  baseTempDir: "/tmp"
 
 # -- Sensitive configuration (stored in Secret)
 secrets:
