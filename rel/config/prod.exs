@@ -79,6 +79,8 @@ config :lowendinsight_get, Oban,
 config :redix,
   redis_url: System.get_env("REDIS_URL")
 
+config :tzdata, :data_dir, "/tmp/tzdata"
+
 config :lowendinsight_get, LowendinsightGet.Scheduler,
 jobs: [
   # Every 5 minutes

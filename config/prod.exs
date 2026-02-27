@@ -79,6 +79,8 @@ config :lowendinsight,
 config :redix,
   redis_url: System.get_env("REDIS_URL")
 
+config :tzdata, :data_dir, "/tmp/tzdata"
+
 # DATABASE_URL format: ecto://user:pass@host/database
 database_url = System.get_env("DATABASE_URL") || "ecto://postgres:postgres@localhost/lowendinsight_get_prod"
 

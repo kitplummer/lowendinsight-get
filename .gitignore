@@ -31,3 +31,8 @@ lowendinsight_get-*.tar
 .claude/
 .beads/
 .logs/
+
+# Zarf/UDS build artifacts
+zarf-package-*.tar.zst
+uds-bundle-*.tar.zst
+bundle/uds-bundle-*.tar.zst

@@ -1,0 +1,6 @@
+options:
+  log_level: debug
+  architecture: arm64
+
+shared:
+  domain: uds.dev
